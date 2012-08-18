@@ -17,14 +17,27 @@
  */
 
 #include "TomahawkAccount.h"
+
 #include "TomahawkAccountConfig.h"
+#include "utils/Closure.h"
+#include "utils/Logger.h"
+#include <utils/TomahawkUtils.h>
 
 #include <QtPlugin>
+#include <QNetworkRequest>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QUrl>
+
+#include <parser.h>
+#include <serializer.h>
 
 using namespace Tomahawk;
 using namespace Accounts;
 
 static QPixmap* s_icon = 0;
+
+#define AUTH_SERVER "https://auth.jefferai.org"
 
 TomahawkAccountFactory::TomahawkAccountFactory()
 {
@@ -59,6 +72,8 @@ TomahawkAccountFactory::createAccount( const QString& pluginId )
 
 TomahawkAccount::TomahawkAccount( const QString& accountId )
     : Account( accountId )
+    , m_loggedIn( false )
+    , m_state( Disconnected )
 {
 
 }
@@ -74,7 +89,7 @@ QWidget*
 TomahawkAccount::configurationWidget()
 {
     if ( m_configWidget.isNull() )
-        m_configWidget = QWeakPointer<TomahawkAccountConfig>( new TomahawkAccountConfig );
+        m_configWidget = QWeakPointer<TomahawkAccountConfig>( new TomahawkAccountConfig( this ) );
 
     return m_configWidget.data();
 }
@@ -83,21 +98,35 @@ TomahawkAccount::configurationWidget()
 void
 TomahawkAccount::authenticate()
 {
+    if ( connectionState() == Connected )
+        return;
 
+    if ( !username().isEmpty() && !authToken().isEmpty() )
+    {
+        qDebug() << "Doing login with auth token:" << authToken();
+        loginWithAuthToken( username(), authToken() );
+    }
+    else if ( !username().isEmpty() )
+    {
+        // Need to re-prompt for password, since we don't save it!
+    }
 }
 
 
 void
 TomahawkAccount::deauthenticate()
 {
+    if ( connectionState() == Disconnected )
+        return;
 
+    logout();
 }
 
 
 Account::ConnectionState
 TomahawkAccount::connectionState() const
 {
-    return Account::Disconnected;
+    return m_state;
 }
 
 
@@ -118,7 +147,209 @@ TomahawkAccount::icon() const
 bool
 TomahawkAccount::isAuthenticated() const
 {
-    return false;
+    return loggedIn();
+}
+
+
+QString
+TomahawkAccount::username() const
+{
+    return credentials().value( "username" ).toString();
+}
+
+
+QByteArray
+TomahawkAccount::authToken() const
+{
+    return credentials().value( "authtoken" ).toByteArray();
+}
+
+
+bool
+TomahawkAccount::loggedIn() const
+{
+    return m_loggedIn;
+}
+
+
+void
+TomahawkAccount::onLoggedIn( bool loggedIn )
+{
+    m_loggedIn = loggedIn;
+}
+
+
+void
+TomahawkAccount::doRegister( const QString& username, const QString& password, const QString& email )
+{
+    if ( username.isEmpty() || password.isEmpty() || email.isEmpty() )
+    {
+        return;
+    }
+
+    QVariantMap registerCmd;
+    registerCmd[ "command" ] = "register";
+    registerCmd[ "email" ] = email;
+    registerCmd[ "password" ] = password;
+    registerCmd[ "username" ] = username;
+
+    QNetworkReply* reply = buildRequest( "signup", registerCmd );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished( QNetworkReply*, const QString&, const QString& ) ), reply, username, password );
+}
+
+
+void
+TomahawkAccount::loginWithPassword( const QString& username, const QString& password )
+{
+    if ( username.isEmpty() || password.isEmpty() )
+    {
+        tLog() << "No tomahawk account username or pw, not logging in";
+        return;
+    }
+
+    QVariantMap params;
+    params[ "password" ] = password;
+    params[ "username" ] = username;
+
+    QNetworkReply* reply = buildRequest( "login", params );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onPasswordLoginFinished( QNetworkReply*, const QString& ) ), reply, username );
+}
+
+
+void
+TomahawkAccount::loginWithAuthToken( const QString& username, const QByteArray& authToken )
+{
+    if ( username.isEmpty() || authToken.isEmpty() )
+    {
+        tLog() << "No tomahawk account username or authToken, not logging in";
+        return;
+    }
+
+    QVariantMap params;
+    params[ "authtoken" ] = authToken;
+    params[ "username" ] = username;
+
+    QNetworkReply* reply = buildRequest( "login", params );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onAuthtokenLoginFinished( QNetworkReply*, const QString&, const QByteArray& ) ), reply, username, authToken );
+
+    m_state = Connecting;
+    emit connectionStateChanged( m_state );
+}
+
+
+void
+TomahawkAccount::logout()
+{
+    m_state = Disconnected;
+
+    emit completedLogout();
+}
+
+void
+TomahawkAccount::onRegisterFinished( QNetworkReply* reply, const QString& username, const QString& password )
+{
+    Q_ASSERT( reply );
+    bool ok;
+    const QVariantMap resp = parseReply( reply, ok );
+    if ( !ok )
+    {
+        emit registerFinished( false, resp.value( "errormsg" ).toString() );
+        return;
+    }
+
+    emit registerFinished( true, QString() );
+}
+
+
+void
+TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& username )
+{
+    Q_ASSERT( reply );
+    bool ok;
+    const QVariantMap resp = parseReply( reply, ok );
+    if ( !ok )
+        return;
+
+    const QByteArray authenticationToken = resp.value( "authtoken" ).toByteArray();
+
+    if ( !authenticationToken.isEmpty() )
+    {
+        // We're succesful! Now log in with our authtoken for access
+        loginWithAuthToken( username, authenticationToken );
+    }
+}
+
+
+void
+TomahawkAccount::onAuthtokenLoginFinished( QNetworkReply* reply, const QString& username, const QByteArray& authToken )
+{
+    Q_ASSERT( reply );
+    bool ok;
+    const QVariantMap resp = parseReply( reply, ok );
+    if ( !ok )
+    {
+        m_state = Disconnected;
+        emit connectionStateChanged( m_state );
+        return;
+    }
+
+
+    tLog() << "Successfully logged in to Tomahawk service with authentication token: " << authToken;
+
+    QVariantHash creds = credentials();
+    creds[ "username" ] = username;
+    creds[ "authtoken" ] = authToken;
+    setCredentials( creds );
+    syncConfig();
+
+    m_loggedIn = true;
+    m_state = Connected;
+    emit connectionStateChanged( m_state );
+
+    emit completedLogin();
+}
+
+QNetworkReply*
+TomahawkAccount::buildRequest( const QString& command, const QVariantMap& params ) const
+{
+    QJson::Serializer s;
+    const QByteArray msgJson = s.serialize( params );
+
+    QNetworkRequest req( QUrl( QString( "%1/%2" ).arg( AUTH_SERVER ).arg( command ) ) );
+    req.setHeader( QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8" );
+    QNetworkReply* reply = TomahawkUtils::nam()->post( req, msgJson );
+
+    return reply;
+}
+
+
+QVariantMap
+TomahawkAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
+{
+    QVariantMap resp;
+
+    reply->deleteLater();
+
+    if ( reply->error() != QNetworkReply::NoError )
+    {
+        tLog() << "Network error in register command:" << reply->error() << reply->errorString();
+        okRet = false;
+        return resp;
+    }
+
+    QJson::Parser p;
+    bool ok;
+    resp = p.parse( reply, &ok ).toMap();
+
+    if ( !ok || resp.value( "error", false ).toBool() )
+    {
+        tLog() << "Error from tomahawk server response, or in parsing from json:" << resp.value( "errormsg" ) << resp;
+        okRet = false;
+        return resp;
+    }
+
+    okRet = true;
+    return resp;
 }
 
 Q_EXPORT_PLUGIN2( Tomahawk::Accounts::AccountFactory, Tomahawk::Accounts::TomahawkAccountFactory )

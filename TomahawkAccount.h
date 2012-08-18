@@ -24,6 +24,8 @@
 #include "../AccountDllMacro.h"
 
 class SipPlugin;
+class QNetworkReply;
+
 
 namespace Tomahawk
 {
@@ -42,7 +44,7 @@ public:
 
     virtual QString factoryId() const { return "tomahawkaccount"; }
     virtual QString prettyName() const { return "Tomahawk Online"; }
-    QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
+    virtual QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
     virtual bool isUnique() const { return true; }
     AccountTypes types() const { return AccountTypes( SipType | InfoType | StatusPushType ); };
 #ifndef ENABLE_HEADLESS
@@ -73,8 +75,40 @@ public:
     QWidget* configurationWidget();
     QWidget* aclWidget() { return 0; }
 
+    bool loggedIn() const;
+    QString username() const;
+
+signals:
+    void completedLogin();
+    void completedLogout();
+
+    void registerFinished( bool successful, const QString& msg );
+
+private slots:
+    void onRegisterFinished( QNetworkReply*, const QString& username, const QString& password );
+    void onPasswordLoginFinished( QNetworkReply*, const QString& username );
+    void onAuthtokenLoginFinished( QNetworkReply*, const QString& username, const QByteArray& authToken );
+
+    void onLoggedIn( bool loggedIn );
+
 private:
+    QByteArray authToken() const;
+
+    void doRegister( const QString& username, const QString& password, const QString& email );
+    void loginWithPassword( const QString& username, const QString& password );
+    void loginWithAuthToken( const QString& username, const QByteArray& authToken );
+    void logout();
+
+    QNetworkReply* buildRequest( const QString& command, const QVariantMap& params ) const;
+    QVariantMap parseReply( QNetworkReply* reply, bool& ok ) const;
+
     QWeakPointer<TomahawkAccountConfig> m_configWidget;
+
+//     QVariantMap m_creds;
+    bool m_loggedIn;
+    Account::ConnectionState m_state;
+
+    friend class TomahawkAccountConfig;
 };
 
 }
@@ -82,3 +116,5 @@ private:
 
 
 #endif
+
+class QNetworkReply;

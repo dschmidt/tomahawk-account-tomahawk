@@ -17,33 +17,54 @@
  */
 
 #include "TomahawkAccountConfig.h"
+#include "TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
-#include "utils/Closure.h"
 #include "utils/Logger.h"
 
 #include "ui_TomahawkAccountConfig.h"
 
-#include <QNetworkRequest>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QUrl>
-
-#include <parser.h>
-#include <serializer.h>
-
 using namespace Tomahawk;
 using namespace Accounts;
 
-#define AUTH_SERVER "https://auth.jefferai.org"
+namespace {
+    enum ButtonAction {
+        Login,
+        Register,
+        Logout
+    };
+}
 
-TomahawkAccountConfig::TomahawkAccountConfig( QWidget* parent, Qt::WindowFlags f )
-    : QWidget( parent, f )
+TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
+    : QWidget( 0 )
     , m_ui( new Ui::TomahawkAccountConfig )
+    , m_account( account )
 {
+    Q_ASSERT( m_account );
+
     m_ui->setupUi( this );
 
+    m_ui->emailLabel->hide();
+    m_ui->emailEdit->hide();
+
     connect( m_ui->registerbutton, SIGNAL( clicked( bool ) ), this, SLOT( registerClicked() ) );
-    connect( m_ui->loginButton, SIGNAL( clicked( bool ) ), this, SLOT( login() ) );
+    connect( m_ui->loginOrRegisterButton, SIGNAL( clicked( bool ) ), this, SLOT( loginOrRegister() ) );
+
+    connect( m_ui->usernameEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
+    connect( m_ui->passwordEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
+    connect( m_ui->emailEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
+
+    connect( m_account, SIGNAL( completedLogin() ), this, SLOT( showLoggedIn() ) );
+    connect( m_account, SIGNAL( completedLogout() ), this, SLOT( showLoggedOut() ) );
+
+    connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
+
+    if ( m_account->loggedIn() )
+        showLoggedIn();
+    else
+    {
+        m_ui->usernameEdit->setText( m_account->username() );
+        showLoggedOut();
+    }
 }
 
 TomahawkAccountConfig::~TomahawkAccountConfig()
@@ -55,62 +76,125 @@ TomahawkAccountConfig::~TomahawkAccountConfig()
 void
 TomahawkAccountConfig::registerClicked()
 {
-    if ( m_ui->usernameEdit->text().isEmpty() )
+    m_ui->registerbutton->hide();
+
+    m_ui->emailLabel->show();
+    m_ui->emailEdit->show();
+    m_ui->loginOrRegisterButton->setText( tr( "Register" ) );
+    m_ui->loginOrRegisterButton->setProperty( "action", Register );
+
+}
+
+
+void
+TomahawkAccountConfig::loginOrRegister()
+{
+    const ButtonAction action = static_cast< ButtonAction>( m_ui->loginOrRegisterButton->property( "action" ).toInt() );
+
+    if ( action == Login )
     {
-        return;
+        // Log in mode
+        m_account->loginWithPassword( m_ui->usernameEdit->text(), m_ui->passwordEdit->text() );
     }
-
-
-    // Register username
-    const QString username = m_ui->usernameEdit->text();
-
-    QVariantMap registerCmd;
-    registerCmd[ "command" ] = "register";
-    registerCmd[ "email" ] = "lfranchi@kde.org";
-    registerCmd[ "password" ] = "mypw";
-    registerCmd[ "username" ] = username;
-
-    QNetworkReply* reply = buildRequest( "signup", registerCmd );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished( QNetworkReply* ) ), reply );
-}
-
-
-void
-TomahawkAccountConfig::login()
-{
-
-}
-
-
-void
-TomahawkAccountConfig::onRegisterFinished( QNetworkReply* reply )
-{
-    Q_ASSERT( reply );
-
-    if ( reply->error() == QNetworkReply::NoError )
+    else if ( action == Register )
     {
-        const QByteArray data = reply->readAll();
-        tDebug() << "Successfully ran register command:" << data;
+        // Register since the use clicked register and just entered his info
+        const QString username = m_ui->usernameEdit->text();
+        const QString password = m_ui->passwordEdit->text();
+        const QString email = m_ui->emailEdit->text();
+        m_account->doRegister( username, password, email );
+    }
+    else if ( action == Logout )
+    {
+        // TODO
+        m_ui->usernameEdit->clear();
+        m_ui->passwordEdit->clear();
+
+        m_account->setCredentials( QVariantHash() );
+        m_account->sync();
+
+        m_account->logout();
+    }
+}
+
+
+void
+TomahawkAccountConfig::fieldsChanged()
+{
+    const QString username = m_ui->usernameEdit->text();
+    const QString password = m_ui->passwordEdit->text();
+    const QString email = m_ui->emailEdit->text();
+
+    const ButtonAction action = static_cast< ButtonAction>( m_ui->loginOrRegisterButton->property( "action" ).toInt() );
+
+    m_ui->loginOrRegisterButton->setEnabled( !username.isEmpty() && !password.isEmpty() && ( action == Login || !email.isEmpty() ) );
+
+    m_ui->errorLabel->clear();
+
+    if ( action == Login )
+        m_ui->loginOrRegisterButton->setText( tr( "Login" ) );
+    else if ( action == Register )
+        m_ui->loginOrRegisterButton->setText( tr( "Register" ) );
+}
+
+
+void
+TomahawkAccountConfig::registerFinished( bool success, const QString& error )
+{
+    if ( success )
+    {
+        showLoggedOut();
+        m_ui->errorLabel->setText( tr( "An email has been sent to activate your account" ) );
     }
     else
     {
-        const QByteArray data = reply->readAll();
-        tLog() << "Error in register command:" << reply->error() << reply->errorString() << "body:" << data;
+        m_ui->loginOrRegisterButton->setText( "Failed" );
+        m_ui->loginOrRegisterButton->setEnabled( false );
+        m_ui->errorLabel->setText( error );
     }
-
-    reply->deleteLater();
 }
 
 
-QNetworkReply*
-TomahawkAccountConfig::buildRequest( const QString& command, const QVariantMap& params ) const
+void
+TomahawkAccountConfig::showLoggedIn()
 {
-    QJson::Serializer s;
-    const QByteArray msgJson = s.serialize( params );
+    m_ui->registerbutton->hide();
+    m_ui->usernameLabel->hide();
+    m_ui->usernameEdit->hide();
+    m_ui->emailLabel->hide();
+    m_ui->emailEdit->hide();
+    m_ui->passwordLabel->hide();
+    m_ui->passwordEdit->hide();
 
-    QNetworkRequest req( QUrl( QString( "%1/%2" ).arg( AUTH_SERVER ).arg( command ) ) );
-    req.setHeader( QNetworkRequest::ContentTypeHeader, "application/json; charset=UTF-8" );
-    QNetworkReply* reply = TomahawkUtils::nam()->post( req, msgJson );
+    m_ui->loggedInLabel->setText( tr( "Logged in as: %1" ).arg( m_account->username() ) );
+    m_ui->loggedInLabel->show();
 
-    return reply;
+    m_ui->errorLabel->clear();
+    m_ui->errorLabel->hide();
+
+    m_ui->loginOrRegisterButton->setText( "Log out" );
+    m_ui->loginOrRegisterButton->setProperty( "action", Logout );
 }
+
+
+void
+TomahawkAccountConfig::showLoggedOut()
+{
+    m_ui->emailEdit->hide();
+    m_ui->emailLabel->hide();
+
+    m_ui->registerbutton->show();
+    m_ui->usernameLabel->show();
+    m_ui->usernameEdit->show();
+    m_ui->passwordLabel->show();
+    m_ui->passwordEdit->show();
+
+    m_ui->loggedInLabel->clear();
+    m_ui->loggedInLabel->hide();
+
+    m_ui->errorLabel->clear();
+
+    m_ui->loginOrRegisterButton->setText( "Login" );
+    m_ui->loginOrRegisterButton->setProperty( "action", Login );
+}
+

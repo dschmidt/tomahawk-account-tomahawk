@@ -31,23 +31,29 @@ namespace Ui {
 namespace Tomahawk {
 namespace Accounts {
 
+class TomahawkAccount;
+
 class TomahawkAccountConfig : public QWidget
 {
     Q_OBJECT
 public:
-    explicit TomahawkAccountConfig( QWidget* parent = 0, Qt::WindowFlags f = 0 );
+    explicit TomahawkAccountConfig( TomahawkAccount* account );
     virtual ~TomahawkAccountConfig();
 
 private slots:
     void registerClicked();
-    void login();
+    void loginOrRegister();
 
-    void onRegisterFinished( QNetworkReply* );
+    void registerFinished( bool success, const QString& error );
+
+    void fieldsChanged();
+
+    void showLoggedIn();
+    void showLoggedOut();
 
 private:
-    QNetworkReply* buildRequest( const QString& command, const QVariantMap& params ) const;
-
     Ui::TomahawkAccountConfig* m_ui;
+    TomahawkAccount* m_account;
 };
 
 }
