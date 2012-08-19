@@ -20,6 +20,7 @@
 #include "TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
+#include <utils/WebSocketWrapper.h>
 
 #include "ui_TomahawkAccountConfig.h"
 
@@ -57,6 +58,10 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_account, SIGNAL( completedLogout() ), this, SLOT( showLoggedOut() ) );
 
     connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
+
+    connect( m_ui->doNotPress, SIGNAL( clicked( bool ) ), this, SLOT( dontPress() ) );
+    connect( m_ui->doubleDont, SIGNAL( clicked( bool ) ), this, SLOT( dontPress2() ) );
+    connect( m_ui->stop, SIGNAL( clicked( bool ) ), this, SLOT( stop() ) );
 
     if ( m_account->loggedIn() )
         showLoggedIn();
@@ -198,3 +203,25 @@ TomahawkAccountConfig::showLoggedOut()
     m_ui->loginOrRegisterButton->setProperty( "action", Login );
 }
 
+
+void
+TomahawkAccountConfig::dontPress()
+{
+//     m_ws = new WebSocketWrapper( "wss://echo.websocket.org" );
+    m_ws = new WebSocketWrapper( m_ui->wsUrl->text() );
+    m_ws->start();
+}
+
+
+void
+TomahawkAccountConfig::dontPress2()
+{
+    m_ws->send( "OHAI!" );
+}
+
+
+void
+TomahawkAccountConfig::stop()
+{
+    m_ws->stop();
+}

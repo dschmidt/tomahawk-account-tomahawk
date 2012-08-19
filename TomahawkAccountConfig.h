@@ -22,6 +22,7 @@
 #include <QWidget>
 #include <QVariantMap>
 
+class WebSocketWrapper;
 class QNetworkReply;
 
 namespace Ui {
@@ -51,9 +52,14 @@ private slots:
     void showLoggedIn();
     void showLoggedOut();
 
+    void dontPress();
+    void dontPress2();
+    void stop();
 private:
     Ui::TomahawkAccountConfig* m_ui;
     TomahawkAccount* m_account;
+
+    WebSocketWrapper* m_ws;
 };
 
 }
