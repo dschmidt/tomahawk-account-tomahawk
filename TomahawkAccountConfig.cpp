@@ -54,7 +54,6 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_ui->passwordEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
     connect( m_ui->emailEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
 
-    connect( m_account, SIGNAL( completedLogin() ), this, SLOT( showLoggedIn() ) );
     connect( m_account, SIGNAL( completedLogout() ), this, SLOT( showLoggedOut() ) );
 
     connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
@@ -66,10 +65,7 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_ui->stop, SIGNAL( clicked( bool ) ), this, SLOT( stop() ) );
     
     if ( m_account->loggedIn() )
-    {
         accountInfoUpdated();
-        showLoggedIn();
-    }
     else
     {
         m_ui->usernameEdit->setText( m_account->username() );
@@ -212,15 +208,15 @@ TomahawkAccountConfig::showLoggedOut()
 void
 TomahawkAccountConfig::accountInfoUpdated()
 {
-    QVariantHash tokensCreds = m_account->credentials()[ "accesstokens" ].toHash();
+    QVariantMap tokensCreds = m_account->credentials()[ "accesstokens" ].toMap();
     //FIXME: Don't blindly pick the first one that matches?
-    QVariantHash connectVals;
+    QVariantMap connectVals;
     foreach ( QString token, tokensCreds.keys() )
     {
         QVariantList tokenList = tokensCreds[ token ].toList();
         foreach ( QVariant tokenListVar, tokenList )
         {
-            QVariantHash tokenListVal = tokenListVar.toHash();
+            QVariantMap tokenListVal = tokenListVar.toMap();
             if ( tokenListVal.contains( "type" ) && tokenListVal[ "type" ].toString() == "sync" )
             {
                 connectVals = tokenListVal;
@@ -232,12 +228,11 @@ TomahawkAccountConfig::accountInfoUpdated()
     }
     
     if ( connectVals.isEmpty() )
-    {
         m_ui->wsUrl->clear();
-        return;
-    }
-
-    m_ui->wsUrl->setText( connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString() );
+    else
+        m_ui->wsUrl->setText( connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString() );
+    
+    showLoggedIn();
     return;
 }
 

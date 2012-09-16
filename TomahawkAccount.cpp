@@ -310,10 +310,8 @@ TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply, const QByteA
         return;
     }
 
-    tLog() << "Successfully logged in to Tomahawk service with authentication token: " << authToken;
-
     QVariantHash creds = credentials();
-    creds[ "accesstokens" ] = resp[ "message" ].toMap();
+    creds[ "accesstokens" ] = resp[ "message" ].toMap()[ "accesstokens" ];
     setCredentials( creds );
     syncConfig();
 
