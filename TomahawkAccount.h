@@ -85,9 +85,9 @@ signals:
     void registerFinished( bool successful, const QString& msg );
 
 private slots:
-    void onRegisterFinished( QNetworkReply*, const QString& username, const QString& password );
+    void onRegisterFinished( QNetworkReply* );
     void onPasswordLoginFinished( QNetworkReply*, const QString& username );
-    void onAuthtokenLoginFinished( QNetworkReply*, const QString& username, const QByteArray& authToken );
+    void onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& authToken );
 
     void onLoggedIn( bool loggedIn );
 
@@ -96,7 +96,7 @@ private:
 
     void doRegister( const QString& username, const QString& password, const QString& email );
     void loginWithPassword( const QString& username, const QString& password );
-    void loginWithAuthToken( const QString& username, const QByteArray& authToken );
+    void fetchAccessTokens( const QString& username, const QByteArray& authToken );
     void logout();
 
     QNetworkReply* buildRequest( const QString& command, const QVariantMap& params ) const;

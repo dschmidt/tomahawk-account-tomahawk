@@ -59,12 +59,17 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
 
     connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
 
+    connect( m_account, SIGNAL( completedLogin() ), this, SLOT( accountInfoUpdated() ) );
+    
     connect( m_ui->doNotPress, SIGNAL( clicked( bool ) ), this, SLOT( dontPress() ) );
     connect( m_ui->doubleDont, SIGNAL( clicked( bool ) ), this, SLOT( dontPress2() ) );
     connect( m_ui->stop, SIGNAL( clicked( bool ) ), this, SLOT( stop() ) );
-
+    
     if ( m_account->loggedIn() )
+    {
+        accountInfoUpdated();
         showLoggedIn();
+    }
     else
     {
         m_ui->usernameEdit->setText( m_account->username() );
@@ -201,6 +206,39 @@ TomahawkAccountConfig::showLoggedOut()
 
     m_ui->loginOrRegisterButton->setText( "Login" );
     m_ui->loginOrRegisterButton->setProperty( "action", Login );
+}
+
+
+void
+TomahawkAccountConfig::accountInfoUpdated()
+{
+    QVariantHash tokensCreds = m_account->credentials()[ "accesstokens" ].toHash();
+    //FIXME: Don't blindly pick the first one that matches?
+    QVariantHash connectVals;
+    foreach ( QString token, tokensCreds.keys() )
+    {
+        QVariantList tokenList = tokensCreds[ token ].toList();
+        foreach ( QVariant tokenListVar, tokenList )
+        {
+            QVariantHash tokenListVal = tokenListVar.toHash();
+            if ( tokenListVal.contains( "type" ) && tokenListVal[ "type" ].toString() == "sync" )
+            {
+                connectVals = tokenListVal;
+                break;
+            }
+        }
+        if ( !connectVals.isEmpty() )
+            break;
+    }
+    
+    if ( connectVals.isEmpty() )
+    {
+        m_ui->wsUrl->clear();
+        return;
+    }
+
+    m_ui->wsUrl->setText( connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString() );
+    return;
 }
 
 

@@ -104,7 +104,7 @@ TomahawkAccount::authenticate()
     if ( !username().isEmpty() && !authToken().isEmpty() )
     {
         qDebug() << "Doing login with auth token:" << authToken();
-        loginWithAuthToken( username(), authToken() );
+        fetchAccessTokens( username(), authToken() );
     }
     else if ( !username().isEmpty() )
     {
@@ -194,7 +194,7 @@ TomahawkAccount::doRegister( const QString& username, const QString& password, c
     registerCmd[ "username" ] = username;
 
     QNetworkReply* reply = buildRequest( "signup", registerCmd );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished( QNetworkReply*, const QString&, const QString& ) ), reply, username, password );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished( QNetworkReply* ) ), reply );
 }
 
 
@@ -217,7 +217,7 @@ TomahawkAccount::loginWithPassword( const QString& username, const QString& pass
 
 
 void
-TomahawkAccount::loginWithAuthToken( const QString& username, const QByteArray& authToken )
+TomahawkAccount::fetchAccessTokens( const QString& username, const QByteArray& authToken )
 {
     if ( username.isEmpty() || authToken.isEmpty() )
     {
@@ -229,8 +229,9 @@ TomahawkAccount::loginWithAuthToken( const QString& username, const QByteArray& 
     params[ "authtoken" ] = authToken;
     params[ "username" ] = username;
 
-    QNetworkReply* reply = buildRequest( "login", params );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onAuthtokenLoginFinished( QNetworkReply*, const QString&, const QByteArray& ) ), reply, username, authToken );
+    tLog() << "Fetching access tokens";
+    QNetworkReply* reply = buildRequest( "tokens", params );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& ) ), reply, authToken );
 
     m_state = Connecting;
     emit connectionStateChanged( m_state );
@@ -246,7 +247,7 @@ TomahawkAccount::logout()
 }
 
 void
-TomahawkAccount::onRegisterFinished( QNetworkReply* reply, const QString& username, const QString& password )
+TomahawkAccount::onRegisterFinished( QNetworkReply* reply )
 {
     Q_ASSERT( reply );
     bool ok;
@@ -270,39 +271,55 @@ TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& u
     if ( !ok )
         return;
 
-    const QByteArray authenticationToken = resp.value( "authtoken" ).toByteArray();
+    const QByteArray authenticationToken = resp.value( "message" ).toMap().value( "authtoken" ).toByteArray();
 
+    QVariantHash creds = credentials();
+    creds[ "username" ] = username;
+    creds[ "authtoken" ] = authenticationToken;
+    setCredentials( creds );
+    syncConfig();
+    
     if ( !authenticationToken.isEmpty() )
     {
         // We're succesful! Now log in with our authtoken for access
-        loginWithAuthToken( username, authenticationToken );
+        fetchAccessTokens( username, authenticationToken );
     }
 }
 
 
 void
-TomahawkAccount::onAuthtokenLoginFinished( QNetworkReply* reply, const QString& username, const QByteArray& authToken )
+TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply, const QByteArray& authToken )
 {
     Q_ASSERT( reply );
     bool ok;
     const QVariantMap resp = parseReply( reply, ok );
     if ( !ok )
     {
+        if ( resp["code"].toInt() == 140 )
+        {
+            tLog() << "Expired credentials, need to reauthenticate with password";
+            QVariantHash creds = credentials();
+            creds.remove( "authtoken" );
+            setCredentials( creds );
+            syncConfig();
+        }
+        else
+            tLog() << "Unable to fetch access tokens";
         m_state = Disconnected;
         emit connectionStateChanged( m_state );
         return;
     }
 
-
     tLog() << "Successfully logged in to Tomahawk service with authentication token: " << authToken;
 
     QVariantHash creds = credentials();
-    creds[ "username" ] = username;
-    creds[ "authtoken" ] = authToken;
+    creds[ "accesstokens" ] = resp[ "message" ].toMap();
     setCredentials( creds );
     syncConfig();
 
     m_loggedIn = true;
+
+    //FIXME: We shouldn't say that we're connected until the SIP connects
     m_state = Connected;
     emit connectionStateChanged( m_state );
 
@@ -332,7 +349,7 @@ TomahawkAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
 
     if ( reply->error() != QNetworkReply::NoError )
     {
-        tLog() << "Network error in register command:" << reply->error() << reply->errorString();
+        tLog() << "Network error in command:" << reply->error() << reply->errorString();
         okRet = false;
         return resp;
     }
@@ -348,6 +365,8 @@ TomahawkAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
         return resp;
     }
 
+    tLog() << "Got reply" << resp.keys();
+    tLog() << "Got reply" << resp.values();
     okRet = true;
     return resp;
 }

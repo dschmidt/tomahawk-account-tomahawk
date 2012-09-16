@@ -144,7 +144,7 @@
    <item>
     <widget class="QLineEdit" name="wsUrl">
      <property name="text">
-      <string>ws://127.0.0.1:9002</string>
+      <string>wss://127.0.0.1:9002</string>
      </property>
      <property name="placeholderText">
       <string>Enter websocket url</string>

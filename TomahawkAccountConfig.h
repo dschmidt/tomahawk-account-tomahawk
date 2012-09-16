@@ -52,6 +52,7 @@ private slots:
     void showLoggedIn();
     void showLoggedOut();
 
+    void accountInfoUpdated();
     void dontPress();
     void dontPress2();
     void stop();
