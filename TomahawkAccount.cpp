@@ -72,8 +72,6 @@ TomahawkAccountFactory::createAccount( const QString& pluginId )
 
 TomahawkAccount::TomahawkAccount( const QString& accountId )
     : Account( accountId )
-    , m_loggedIn( false )
-    , m_state( Disconnected )
 {
 
 }
@@ -103,8 +101,7 @@ TomahawkAccount::authenticate()
 
     if ( !username().isEmpty() && !authToken().isEmpty() )
     {
-        qDebug() << "Doing login with auth token:" << authToken();
-        fetchAccessTokens( username(), authToken() );
+        qDebug() << "Have saved credentials with auth token:" << authToken();
     }
     else if ( !username().isEmpty() )
     {
@@ -118,8 +115,6 @@ TomahawkAccount::deauthenticate()
 {
     if ( connectionState() == Disconnected )
         return;
-
-    logout();
 }
 
 
@@ -133,7 +128,15 @@ TomahawkAccount::connectionState() const
 SipPlugin*
 TomahawkAccount::sipPlugin()
 {
-    return 0;
+    if ( m_tomahawkSipPlugin.isNull() )
+    {
+        tLog() << Q_FUNC_INFO;
+        m_tomahawkSipPlugin = QWeakPointer< TomahawkSipPlugin >( new TomahawkSipPlugin( this ) );
+
+        connect( m_tomahawkSipPlugin.data(), SIGNAL( stateChanged( Tomahawk::Accounts::Account::ConnectionState ) ), this, SIGNAL( connectionStateChanged( Tomahawk::Accounts::Account::ConnectionState ) ) );
+        return m_tomahawkSipPlugin.data();
+    }
+    return m_tomahawkSipPlugin.data();
 }
 
 
@@ -147,7 +150,7 @@ TomahawkAccount::icon() const
 bool
 TomahawkAccount::isAuthenticated() const
 {
-    return loggedIn();
+    return credentials().contains( "authtoken" );
 }
 
 
@@ -162,20 +165,6 @@ QByteArray
 TomahawkAccount::authToken() const
 {
     return credentials().value( "authtoken" ).toByteArray();
-}
-
-
-bool
-TomahawkAccount::loggedIn() const
-{
-    return m_loggedIn;
-}
-
-
-void
-TomahawkAccount::onLoggedIn( bool loggedIn )
-{
-    m_loggedIn = loggedIn;
 }
 
 
@@ -217,34 +206,23 @@ TomahawkAccount::loginWithPassword( const QString& username, const QString& pass
 
 
 void
-TomahawkAccount::fetchAccessTokens( const QString& username, const QByteArray& authToken )
+TomahawkAccount::fetchAccessTokens()
 {
-    if ( username.isEmpty() || authToken.isEmpty() )
+    if ( username().isEmpty() || authToken().isEmpty() )
     {
         tLog() << "No tomahawk account username or authToken, not logging in";
         return;
     }
 
     QVariantMap params;
-    params[ "authtoken" ] = authToken;
-    params[ "username" ] = username;
+    params[ "authtoken" ] = authToken();
+    params[ "username" ] = username();
 
     tLog() << "Fetching access tokens";
     QNetworkReply* reply = buildRequest( "tokens", params );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& ) ), reply, authToken );
-
-    m_state = Connecting;
-    emit connectionStateChanged( m_state );
+    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& ) ), reply );
 }
 
-
-void
-TomahawkAccount::logout()
-{
-    m_state = Disconnected;
-
-    emit completedLogout();
-}
 
 void
 TomahawkAccount::onRegisterFinished( QNetworkReply* reply )
@@ -282,13 +260,13 @@ TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& u
     if ( !authenticationToken.isEmpty() )
     {
         // We're succesful! Now log in with our authtoken for access
-        fetchAccessTokens( username, authenticationToken );
+        fetchAccessTokens();
     }
 }
 
 
 void
-TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply, const QByteArray& authToken )
+TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply )
 {
     Q_ASSERT( reply );
     bool ok;
@@ -305,8 +283,6 @@ TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply, const QByteA
         }
         else
             tLog() << "Unable to fetch access tokens";
-        m_state = Disconnected;
-        emit connectionStateChanged( m_state );
         return;
     }
 
@@ -315,13 +291,7 @@ TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply, const QByteA
     setCredentials( creds );
     syncConfig();
 
-    m_loggedIn = true;
-
-    //FIXME: We shouldn't say that we're connected until the SIP connects
-    m_state = Connected;
-    emit connectionStateChanged( m_state );
-
-    emit completedLogin();
+    emit accessTokensFetched();
 }
 
 QNetworkReply*

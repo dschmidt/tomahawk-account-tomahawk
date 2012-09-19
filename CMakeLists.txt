@@ -4,6 +4,7 @@ add_tomahawk_plugin(tomahawk
     SOURCES
         TomahawkAccount.cpp
         TomahawkAccountConfig.cpp
+        sip/TomahawkSip.cpp
     UI
         TomahawkAccountConfig.ui
     LINK_LIBRARIES

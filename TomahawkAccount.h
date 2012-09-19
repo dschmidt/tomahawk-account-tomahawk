@@ -22,10 +22,9 @@
 
 #include "accounts/Account.h"
 #include "../AccountDllMacro.h"
+#include "sip/TomahawkSip.h"
 
-class SipPlugin;
 class QNetworkReply;
-
 
 namespace Tomahawk
 {
@@ -46,7 +45,7 @@ public:
     virtual QString prettyName() const { return "Tomahawk Online"; }
     virtual QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
     virtual bool isUnique() const { return true; }
-    AccountTypes types() const { return AccountTypes( SipType | InfoType | StatusPushType ); };
+    AccountTypes types() const { return AccountTypes( SipType ); };
 #ifndef ENABLE_HEADLESS
     virtual QPixmap icon() const;
 #endif
@@ -75,39 +74,34 @@ public:
     QWidget* configurationWidget();
     QWidget* aclWidget() { return 0; }
 
-    bool loggedIn() const;
     QString username() const;
 
+    void fetchAccessTokens();
+
 signals:
-    void completedLogin();
-    void completedLogout();
+    void accessTokensFetched();
 
     void registerFinished( bool successful, const QString& msg );
 
 private slots:
     void onRegisterFinished( QNetworkReply* );
     void onPasswordLoginFinished( QNetworkReply*, const QString& username );
-    void onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& authToken );
-
-    void onLoggedIn( bool loggedIn );
+    void onFetchAccessTokensFinished( QNetworkReply* );
 
 private:
     QByteArray authToken() const;
 
     void doRegister( const QString& username, const QString& password, const QString& email );
     void loginWithPassword( const QString& username, const QString& password );
-    void fetchAccessTokens( const QString& username, const QByteArray& authToken );
-    void logout();
 
     QNetworkReply* buildRequest( const QString& command, const QVariantMap& params ) const;
     QVariantMap parseReply( QNetworkReply* reply, bool& ok ) const;
 
     QWeakPointer<TomahawkAccountConfig> m_configWidget;
 
-//     QVariantMap m_creds;
-    bool m_loggedIn;
     Account::ConnectionState m_state;
 
+    QWeakPointer< TomahawkSipPlugin > m_tomahawkSipPlugin;
     friend class TomahawkAccountConfig;
 };
 

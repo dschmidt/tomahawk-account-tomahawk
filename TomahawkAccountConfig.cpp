@@ -64,7 +64,7 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_ui->doubleDont, SIGNAL( clicked( bool ) ), this, SLOT( dontPress2() ) );
     connect( m_ui->stop, SIGNAL( clicked( bool ) ), this, SLOT( stop() ) );
     
-    if ( m_account->loggedIn() )
+    if ( !m_account->authToken().isEmpty() )
         accountInfoUpdated();
     else
     {
@@ -118,8 +118,6 @@ TomahawkAccountConfig::loginOrRegister()
 
         m_account->setCredentials( QVariantHash() );
         m_account->sync();
-
-        m_account->logout();
     }
 }
 
@@ -208,30 +206,6 @@ TomahawkAccountConfig::showLoggedOut()
 void
 TomahawkAccountConfig::accountInfoUpdated()
 {
-    QVariantMap tokensCreds = m_account->credentials()[ "accesstokens" ].toMap();
-    //FIXME: Don't blindly pick the first one that matches?
-    QVariantMap connectVals;
-    foreach ( QString token, tokensCreds.keys() )
-    {
-        QVariantList tokenList = tokensCreds[ token ].toList();
-        foreach ( QVariant tokenListVar, tokenList )
-        {
-            QVariantMap tokenListVal = tokenListVar.toMap();
-            if ( tokenListVal.contains( "type" ) && tokenListVal[ "type" ].toString() == "sync" )
-            {
-                connectVals = tokenListVal;
-                break;
-            }
-        }
-        if ( !connectVals.isEmpty() )
-            break;
-    }
-    
-    if ( connectVals.isEmpty() )
-        m_ui->wsUrl->clear();
-    else
-        m_ui->wsUrl->setText( connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString() );
-    
     showLoggedIn();
     return;
 }
@@ -241,20 +215,19 @@ void
 TomahawkAccountConfig::dontPress()
 {
 //     m_ws = new WebSocketWrapper( "wss://echo.websocket.org" );
-    m_ws = new WebSocketWrapper( m_ui->wsUrl->text() );
-    m_ws->start();
+
 }
 
 
 void
 TomahawkAccountConfig::dontPress2()
 {
-    m_ws->send( "OHAI!" );
+    //m_ws->send( "OHAI!" );
 }
 
 
 void
 TomahawkAccountConfig::stop()
 {
-    m_ws->stop();
+    //m_ws->stop();
 }
