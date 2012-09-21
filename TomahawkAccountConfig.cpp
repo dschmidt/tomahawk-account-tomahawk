@@ -58,10 +58,6 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_account, SIGNAL( deauthenticated() ), this, SLOT( showLoggedOut() ) );
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( accountInfoUpdated() ) );
     
-    connect( m_ui->doNotPress, SIGNAL( clicked( bool ) ), this, SLOT( dontPress() ) );
-    connect( m_ui->doubleDont, SIGNAL( clicked( bool ) ), this, SLOT( dontPress2() ) );
-    connect( m_ui->stop, SIGNAL( clicked( bool ) ), this, SLOT( stop() ) );
-    
     if ( !m_account->authToken().isEmpty() )
         accountInfoUpdated();
     else
@@ -209,26 +205,4 @@ TomahawkAccountConfig::accountInfoUpdated()
 {
     showLoggedIn();
     return;
-}
-
-
-void
-TomahawkAccountConfig::dontPress()
-{
-//     m_ws = new WebSocketWrapper( "wss://echo.websocket.org" );
-
-}
-
-
-void
-TomahawkAccountConfig::dontPress2()
-{
-    //m_ws->send( "OHAI!" );
-}
-
-
-void
-TomahawkAccountConfig::stop()
-{
-    //m_ws->stop();
 }

@@ -52,9 +52,6 @@ private slots:
     void showLoggedOut();
 
     void accountInfoUpdated();
-    void dontPress();
-    void dontPress2();
-    void stop();
 private:
     Ui::TomahawkAccountConfig* m_ui;
     TomahawkAccount* m_account;
