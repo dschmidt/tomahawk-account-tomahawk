@@ -57,6 +57,7 @@ private slots:
 
 private:
     QWeakPointer< WebSocketWrapper > m_ws;
+    QString m_token;
 
     Tomahawk::Accounts::Account::ConnectionState m_state;
 };

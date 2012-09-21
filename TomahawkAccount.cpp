@@ -102,6 +102,8 @@ TomahawkAccount::authenticate()
     if ( !username().isEmpty() && !authToken().isEmpty() )
     {
         qDebug() << "Have saved credentials with auth token:" << authToken();
+        if ( sipPlugin() )
+            sipPlugin()->connectPlugin();
     }
     else if ( !username().isEmpty() )
     {
@@ -113,8 +115,9 @@ TomahawkAccount::authenticate()
 void
 TomahawkAccount::deauthenticate()
 {
-    if ( connectionState() == Disconnected )
-        return;
+    if ( !m_tomahawkSipPlugin.isNull() )
+        sipPlugin()->disconnectPlugin();
+    emit deauthenticated();
 }
 
 
@@ -183,7 +186,7 @@ TomahawkAccount::doRegister( const QString& username, const QString& password, c
     registerCmd[ "username" ] = username;
 
     QNetworkReply* reply = buildRequest( "signup", registerCmd );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished( QNetworkReply* ) ), reply );
+    connect( reply, SIGNAL( finished() ), this, SLOT( onRegisterFinished() ) );
 }
 
 
@@ -220,13 +223,14 @@ TomahawkAccount::fetchAccessTokens()
 
     tLog() << "Fetching access tokens";
     QNetworkReply* reply = buildRequest( "tokens", params );
-    NewClosure( reply, SIGNAL( finished() ), this, SLOT( onFetchAccessTokensFinished( QNetworkReply*, const QByteArray& ) ), reply );
+    connect( reply, SIGNAL( finished() ), this, SLOT( onFetchAccessTokensFinished() ) );
 }
 
 
 void
-TomahawkAccount::onRegisterFinished( QNetworkReply* reply )
+TomahawkAccount::onRegisterFinished()
 {
+    QNetworkReply* reply = qobject_cast< QNetworkReply* >( sender() );
     Q_ASSERT( reply );
     bool ok;
     const QVariantMap resp = parseReply( reply, ok );
@@ -266,8 +270,9 @@ TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& u
 
 
 void
-TomahawkAccount::onFetchAccessTokensFinished( QNetworkReply* reply )
+TomahawkAccount::onFetchAccessTokensFinished()
 {
+    QNetworkReply* reply = qobject_cast< QNetworkReply* >( sender() );
     Q_ASSERT( reply );
     bool ok;
     const QVariantMap resp = parseReply( reply, ok );

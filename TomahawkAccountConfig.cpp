@@ -54,11 +54,9 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_ui->passwordEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
     connect( m_ui->emailEdit, SIGNAL( textChanged( QString ) ), this, SLOT( fieldsChanged() ) );
 
-    connect( m_account, SIGNAL( completedLogout() ), this, SLOT( showLoggedOut() ) );
-
     connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
-
-    connect( m_account, SIGNAL( completedLogin() ), this, SLOT( accountInfoUpdated() ) );
+    connect( m_account, SIGNAL( deauthenticated() ), this, SLOT( showLoggedOut() ) );
+    connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( accountInfoUpdated() ) );
     
     connect( m_ui->doNotPress, SIGNAL( clicked( bool ) ), this, SLOT( dontPress() ) );
     connect( m_ui->doubleDont, SIGNAL( clicked( bool ) ), this, SLOT( dontPress2() ) );
@@ -116,8 +114,11 @@ TomahawkAccountConfig::loginOrRegister()
         m_ui->usernameEdit->clear();
         m_ui->passwordEdit->clear();
 
-        m_account->setCredentials( QVariantHash() );
+        QVariantHash creds = m_account->credentials();
+        creds.clear();
+        m_account->setCredentials( creds );
         m_account->sync();
+        m_account->deauthenticate();
     }
 }
 

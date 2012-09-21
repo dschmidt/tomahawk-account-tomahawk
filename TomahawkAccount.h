@@ -79,14 +79,14 @@ public:
     void fetchAccessTokens();
 
 signals:
+    void deauthenticated();
     void accessTokensFetched();
-
     void registerFinished( bool successful, const QString& msg );
 
 private slots:
-    void onRegisterFinished( QNetworkReply* );
+    void onRegisterFinished();
     void onPasswordLoginFinished( QNetworkReply*, const QString& username );
-    void onFetchAccessTokensFinished( QNetworkReply* );
+    void onFetchAccessTokensFinished();
 
 private:
     QByteArray authToken() const;

@@ -21,6 +21,8 @@
 
 #include <network/Servent.h>
 #include <utils/WebSocketWrapper.h>
+#include <database/Database.h>
+#include <database/DatabaseImpl.h>
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
@@ -28,7 +30,7 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 {
     tLog() << Q_FUNC_INFO;
 
-    connect( m_account, SIGNAL( completedLogin() ), this, SLOT( makeWsConnection() ) );
+    connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
 }
 
 
@@ -93,6 +95,7 @@ TomahawkSipPlugin::makeWsConnection()
             if ( tokenListVal.contains( "type" ) && tokenListVal[ "type" ].toString() == "sync" )
             {
                 connectVals = tokenListVal;
+                m_token = token;
                 break;
             }
         }
@@ -127,6 +130,30 @@ void
 TomahawkSipPlugin::onWsOpened()
 {
     tLog() << Q_FUNC_INFO << "WebSocket opened";
+
+    if ( m_token.isEmpty() || !m_account->credentials().contains( "username" ) )
+    {
+        tLog() << Q_FUNC_INFO << "access token or username is empty, aborting";
+        return;
+    }
+    
+    QVariantMap registerMap;
+    registerMap[ "command" ] = "register";
+    registerMap[ "host" ] = Servent::instance()->externalAddress();
+    registerMap[ "port" ] = Servent::instance()->externalPort();
+    registerMap[ "dbid" ] = Database::instance()->impl()->dbid();
+    registerMap[ "accesstoken" ] = m_token;
+    registerMap[ "username" ] = m_account->credentials()[ "username" ].toString();
+
+    QJson::Serializer serializer;
+    QByteArray bytes = serializer.serialize( registerMap );
+    if ( bytes.isEmpty() )
+    {
+        tLog() << Q_FUNC_INFO << "could not serialize register structure to JSON";
+        return;
+    }
+
+    m_ws.data()->send( bytes );
 }
 
 
