@@ -228,6 +228,8 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
                 retMap[ "success" ].toBool() )
         {
             m_sipState = Connected;
+            m_state = Tomahawk::Accounts::Account::Connected;
+            emit stateChanged( m_state );
             return;
         }
     }
