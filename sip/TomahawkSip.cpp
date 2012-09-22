@@ -307,7 +307,7 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
 
     QVariantMap sendMap;
     sendMap[ "command" ] = "authorize-peer";
-    sendMap[ "dbid" ] = Database::instance()->impl()->dbid();
+    sendMap[ "dbid" ] = valMap[ "dbid" ].toString();
     sendMap[ "offerkey" ] = key;
 
     if ( !sendBytes( sendMap ) )
