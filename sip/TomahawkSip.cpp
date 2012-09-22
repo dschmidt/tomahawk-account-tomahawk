@@ -171,6 +171,8 @@ TomahawkSipPlugin::onWsOpened()
         return;
     }
     
+    m_sipState = Registering;
+    
     QVariantMap registerMap;
     registerMap[ "command" ] = "register";
     registerMap[ "host" ] = Servent::instance()->externalAddress();
@@ -182,10 +184,9 @@ TomahawkSipPlugin::onWsOpened()
     if ( !sendBytes( registerMap ) )
     {
         tLog() << Q_FUNC_INFO << "Failed sending message";
+        m_sipState = Closed;
         return;
     }
-
-    m_sipState = Registering;
 }
 
 
