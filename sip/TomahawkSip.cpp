@@ -308,7 +308,7 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
     QVariantMap sendMap;
     sendMap[ "command" ] = "authorize-peer";
     sendMap[ "dbid" ] = Database::instance()->impl()->dbid();
-    sendMap[ "offer" ] = key;
+    sendMap[ "offerkey" ] = key;
 
     if ( !sendBytes( sendMap ) )
     {
@@ -322,7 +322,7 @@ void
 TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
 {
     tLog() << Q_FUNC_INFO;
-    QStringList keys( QStringList() << "command" << "dbid" << "offer" );
+    QStringList keys( QStringList() << "command" << "dbid" << "offerkey" );
     if ( !checkKeys( keys, valMap ) )
         return;
 
@@ -333,5 +333,5 @@ TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
     }
 
     PeerInfo* info = m_knownPeers[ valMap[ "dbid" ].toString() ];
-    Servent::instance()->connectToPeer( info->host, info->port, valMap[ "offer" ].toString(), info->username, info->dbid );
+    Servent::instance()->connectToPeer( info->host, info->port, valMap[ "offerkey" ].toString(), info->username, info->dbid );
 }
