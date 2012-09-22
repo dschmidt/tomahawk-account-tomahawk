@@ -29,6 +29,26 @@ class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
 {
     Q_OBJECT
 
+    enum SipState {
+        Closed,
+        Registering,
+        Connected
+    };
+
+    struct PeerInfo {
+        QString username;
+        QString host;
+        uint port;
+        QString dbid;
+
+        PeerInfo( const QString &uname, const QString &hst, uint prt, const QString &dbd )
+            : username( uname )
+            , host( hst )
+            , port( prt )
+            , dbid( dbd )
+            {}
+    };
+    
 public:
     TomahawkSipPlugin( Tomahawk::Accounts::Account *account );
 
@@ -56,9 +76,17 @@ private slots:
     void onWsMessage( const QString &msg );
 
 private:
+    bool sendBytes( QVariantMap jsonMap );
+    bool checkKeys( QStringList keys, QVariantMap map );
+    void newPeer( QVariantMap valMap );
+    void peerAuthorization( QVariantMap valMap );
     QWeakPointer< WebSocketWrapper > m_ws;
     QString m_token;
 
+    SipState m_sipState;
+
+    QHash< QString, PeerInfo* > m_knownPeers;
+    
     Tomahawk::Accounts::Account::ConnectionState m_state;
 };
 

@@ -23,9 +23,11 @@
 #include <utils/WebSocketWrapper.h>
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
+#include "network/ControlConnection.h"
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
+    , m_sipState( Closed )
     , m_state( Tomahawk::Accounts::Account::Disconnected )
 {
     tLog() << Q_FUNC_INFO;
@@ -36,7 +38,17 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 
 TomahawkSipPlugin::~TomahawkSipPlugin()
 {
+    if ( !m_ws.isNull() )
+    {
+        m_ws.data()->stop();
+        m_ws.clear();
+    }
 
+    m_sipState = Closed;
+    m_state = Tomahawk::Accounts::Account::Disconnected;
+
+    foreach ( QString dbid, m_knownPeers.keys() )
+        delete m_knownPeers[ dbid ];
 }
 
 
@@ -71,6 +83,7 @@ TomahawkSipPlugin::disconnectPlugin()
         m_ws.clear();
     }
 
+    m_sipState = Closed;
     m_state = Tomahawk::Accounts::Account::Disconnected;
     emit stateChanged( m_state );
 }
@@ -125,6 +138,27 @@ TomahawkSipPlugin::makeWsConnection()
     emit stateChanged( m_state );
 }
 
+bool
+TomahawkSipPlugin::sendBytes( QVariantMap jsonMap )
+{
+    tLog() << Q_FUNC_INFO;
+    if ( m_sipState == Closed )
+    {
+        tLog() << Q_FUNC_INFO << "was told to send bytes on a closed connection, not gonna do it";
+        return false;
+    }
+    
+    QJson::Serializer serializer;
+    QByteArray bytes = serializer.serialize( jsonMap );
+    if ( bytes.isEmpty() )
+    {
+        tLog() << Q_FUNC_INFO << "could not serialize register structure to JSON";
+        return false;
+    }
+
+    m_ws.data()->send( bytes );
+    return true;
+}
 
 void
 TomahawkSipPlugin::onWsOpened()
@@ -145,15 +179,13 @@ TomahawkSipPlugin::onWsOpened()
     registerMap[ "accesstoken" ] = m_token;
     registerMap[ "username" ] = m_account->credentials()[ "username" ].toString();
 
-    QJson::Serializer serializer;
-    QByteArray bytes = serializer.serialize( registerMap );
-    if ( bytes.isEmpty() )
+    if ( !sendBytes( registerMap ) )
     {
-        tLog() << Q_FUNC_INFO << "could not serialize register structure to JSON";
+        tLog() << Q_FUNC_INFO << "Failed sending message";
         return;
     }
 
-    m_ws.data()->send( bytes );
+    m_sipState = Registering;
 }
 
 
@@ -177,4 +209,119 @@ void
 TomahawkSipPlugin::onWsMessage( const QString &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket message: " << msg;
+
+    QJson::Parser parser;
+    bool ok;
+    QVariant jsonVariant = parser.parse( msg.toUtf8(), &ok );
+    if ( !jsonVariant.isValid() )
+    {
+        tLog() << Q_FUNC_INFO << "Failed to parse message back from server";
+        return;
+    }
+
+    QVariantMap retMap = jsonVariant.toMap();
+
+    if ( m_sipState == Registering )
+    {
+        if ( retMap.contains( "success" ) &&
+                retMap[ "success" ].toBool() )
+        {
+            m_sipState = Connected;
+            return;
+        }
+    }
+    else if ( m_sipState != Connected )
+    {
+        // ...erm?
+        tLog() << Q_FUNC_INFO << "Got a message from a non connected socket?";
+        return;
+    }
+    else if ( !retMap.contains( "command" ) ||
+                !retMap[ "command" ].canConvert< QString >() )
+    {
+        tLog() << Q_FUNC_INFO << "Unable to convert and/or interepret command from server";
+        return;
+    }
+
+    QString command = retMap[ "command" ].toString();
+
+    if ( command == "new-peer" )
+        newPeer( retMap );
+    else if ( command == "peer-authorization" )
+        peerAuthorization( retMap );
+}
+
+
+bool
+TomahawkSipPlugin::checkKeys( QStringList keys, QVariantMap map )
+{
+    foreach ( QString key, keys )
+    {
+        if ( !map.contains( key ) )
+        {
+            tLog() << Q_FUNC_INFO << "Did not find the value" << key << "in the new-peer structure";
+            return false;
+        }
+    }
+    return true;
+}
+
+
+void
+TomahawkSipPlugin::newPeer( QVariantMap valMap )
+{
+    tLog() << Q_FUNC_INFO;
+    QStringList keys( QStringList() << "command" << "username" << "host" << "port" << "dbid" );
+    if ( !checkKeys( keys, valMap ) )
+        return;
+
+    if( !Servent::instance()->visibleExternally() )
+    {
+        tLog() << Q_FUNC_INFO << "Not visible externally, so not creating an offer";
+        return;
+    }
+
+    PeerInfo* info = new PeerInfo( valMap[ "username" ].toString(), valMap[ "host" ].toString(),
+                        valMap[ "port" ].toUInt(), valMap[ "dbid" ].toString() );
+
+    m_knownPeers[ valMap[ "dbid" ].toString() ] = info;
+    
+    QString key = uuid();
+    ControlConnection* conn = new ControlConnection( Servent::instance(), QString() );
+
+    const QString& nodeid = valMap[ "dbid" ].toString();
+    conn->setName( valMap[ "username" ].toString() );
+    conn->setId( nodeid );
+
+    Servent::instance()->registerOffer( key, conn );
+
+    QVariantMap sendMap;
+    sendMap[ "command" ] = "authorize-peer";
+    sendMap[ "dbid" ] = Database::instance()->impl()->dbid();
+    sendMap[ "offer" ] = key;
+
+    if ( !sendBytes( sendMap ) )
+    {
+        tLog() << Q_FUNC_INFO << "Failed sending message";
+        return;
+    }
+}
+
+
+void
+TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
+{
+    tLog() << Q_FUNC_INFO;
+    QStringList keys( QStringList() << "command" << "dbid" << "offer" );
+    if ( !checkKeys( keys, valMap ) )
+        return;
+
+    if ( !m_knownPeers.contains( valMap[ "dbid" ].toString() ) )
+    {
+        tLog() << Q_FUNC_INFO << "Received a peer-authorization for a peer we don't know about";
+        return;
+    }
+
+    PeerInfo* info = m_knownPeers[ valMap[ "dbid" ].toString() ];
+    Servent::instance()->connectToPeer( info->host, info->port, valMap[ "offer" ].toString(), info->username, info->dbid );
 }
