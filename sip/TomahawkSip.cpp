@@ -224,13 +224,20 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
 
     if ( m_sipState == Registering )
     {
-        if ( retMap.contains( "success" ) &&
-                retMap[ "success" ].toBool() )
+        tLog() << Q_FUNC_INFO << "In registering state, checking status of registration";
+        if ( retMap.contains( "status" ) &&
+                retMap[ "status" ].toString() == "success" )
         {
+            tLog() << Q_FUNC_INFO << "Registered successfully";
             m_sipState = Connected;
             m_state = Tomahawk::Accounts::Account::Connected;
             emit stateChanged( m_state );
             return;
+        }
+        else
+        {
+            tLog() << Q_FUNC_INFO << "Failed to register successfully";
+            m_ws.data()->stop();
         }
     }
     else if ( m_sipState != Connected )
