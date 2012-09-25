@@ -60,6 +60,4 @@ private:
 }
 }
 
-Q_DECLARE_METATYPE( QNetworkReply* )
-
 #endif
