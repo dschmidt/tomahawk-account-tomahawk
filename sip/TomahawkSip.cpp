@@ -280,16 +280,16 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
     if ( !checkKeys( keys, valMap ) )
         return;
 
+    PeerInfo* info = new PeerInfo( valMap[ "username" ].toString(), valMap[ "host" ].toString(),
+                        valMap[ "port" ].toUInt(), valMap[ "dbid" ].toString() );
+
+    m_knownPeers[ valMap[ "dbid" ].toString() ] = info;
+
     if( !Servent::instance()->visibleExternally() )
     {
         tLog() << Q_FUNC_INFO << "Not visible externally, so not creating an offer";
         return;
     }
-
-    PeerInfo* info = new PeerInfo( valMap[ "username" ].toString(), valMap[ "host" ].toString(),
-                        valMap[ "port" ].toUInt(), valMap[ "dbid" ].toString() );
-
-    m_knownPeers[ valMap[ "dbid" ].toString() ] = info;
     
     QString key = uuid();
     ControlConnection* conn = new ControlConnection( Servent::instance(), QString() );
