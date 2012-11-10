@@ -46,6 +46,7 @@ public:
     virtual QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
     virtual bool isUnique() const { return true; }
     AccountTypes types() const { return AccountTypes( SipType ); };
+    virtual bool allowUserCreation() const { return false; }
 #ifndef ENABLE_HEADLESS
     virtual QPixmap icon() const;
 #endif
@@ -60,6 +61,8 @@ class ACCOUNTDLLEXPORT TomahawkAccount : public Account
 public:
     TomahawkAccount( const QString &accountId );
     virtual ~TomahawkAccount();
+
+    static TomahawkAccount* instance();
 
     QPixmap icon() const;
 
@@ -105,6 +108,8 @@ private:
     Account::ConnectionState m_state;
 
     QWeakPointer< TomahawkSipPlugin > m_tomahawkSipPlugin;
+
+    static TomahawkAccount* s_instance;
     friend class TomahawkAccountConfig;
 };
 
@@ -113,5 +118,3 @@ private:
 
 
 #endif
-
-class QNetworkReply;

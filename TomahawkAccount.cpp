@@ -36,6 +36,7 @@ using namespace Tomahawk;
 using namespace Accounts;
 
 static QPixmap* s_icon = 0;
+TomahawkAccount* TomahawkAccount::s_instance  = 0;
 
 #define AUTH_SERVER "http://auth.toma.hk"
 
@@ -73,13 +74,20 @@ TomahawkAccountFactory::createAccount( const QString& pluginId )
 TomahawkAccount::TomahawkAccount( const QString& accountId )
     : Account( accountId )
 {
-
+    s_instance = this;
 }
 
 
 TomahawkAccount::~TomahawkAccount()
 {
 
+}
+
+
+TomahawkAccount*
+TomahawkAccount::instance()
+{
+    return s_instance;
 }
 
 
