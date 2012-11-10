@@ -37,7 +37,7 @@ using namespace Accounts;
 
 static QPixmap* s_icon = 0;
 
-#define AUTH_SERVER "https://auth.jefferai.org"
+#define AUTH_SERVER "http://auth.toma.hk"
 
 TomahawkAccountFactory::TomahawkAccountFactory()
 {
@@ -99,7 +99,7 @@ TomahawkAccount::authenticate()
     if ( connectionState() == Connected )
         return;
 
-    if ( !username().isEmpty() && !authToken().isEmpty() )
+    if ( !authToken().isEmpty() )
     {
         qDebug() << "Have saved credentials with auth token:" << authToken();
         if ( sipPlugin() )
@@ -211,15 +211,14 @@ TomahawkAccount::loginWithPassword( const QString& username, const QString& pass
 void
 TomahawkAccount::fetchAccessTokens()
 {
-    if ( username().isEmpty() || authToken().isEmpty() )
+    if ( authToken().isEmpty() )
     {
-        tLog() << "No tomahawk account username or authToken, not logging in";
+        tLog() << "No authToken, not logging in";
         return;
     }
 
     QVariantMap params;
     params[ "authtoken" ] = authToken();
-    params[ "username" ] = username();
 
     tLog() << "Fetching access tokens";
     QNetworkReply* reply = buildRequest( "tokens", params );
@@ -253,7 +252,7 @@ TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& u
     if ( !ok )
         return;
 
-    const QByteArray authenticationToken = resp.value( "message" ).toMap().value( "authtoken" ).toByteArray();
+    const QByteArray authenticationToken = resp.value( "message" ).toMap().value( "authtoken" ).toMap().value("token").toByteArray();
 
     QVariantHash creds = credentials();
     creds[ "username" ] = username;

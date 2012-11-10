@@ -96,36 +96,32 @@ TomahawkSipPlugin::makeWsConnection()
     if ( !m_ws.isNull() )
         return;
     
-    QVariantMap tokensCreds = m_account->credentials()[ "accesstokens" ].toMap();
+    QVariantList tokensCreds = m_account->credentials()[ "accesstokens" ].toList();
     //FIXME: Don't blindly pick the first one that matches?
     QVariantMap connectVals;
-    foreach ( QString token, tokensCreds.keys() )
+    foreach ( QVariant credObj, tokensCreds )
     {
-        QVariantList tokenList = tokensCreds[ token ].toList();
-        foreach ( QVariant tokenListVar, tokenList )
+        QVariantMap creds = credObj.toMap();
+        if ( creds.contains( "type" ) && creds[ "type" ].toString() == "sync" )
         {
-            QVariantMap tokenListVal = tokenListVar.toMap();
-            if ( tokenListVal.contains( "type" ) && tokenListVal[ "type" ].toString() == "sync" )
-            {
-                connectVals = tokenListVal;
-                m_token = token;
-                break;
-            }
-        }
-        if ( !connectVals.isEmpty() )
+            connectVals = creds;
+            m_token = creds["token"].toString();
             break;
+        }
     }
 
     QString url;
     if ( !connectVals.isEmpty() )
         url = connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString();
-
+    
     if ( url.isEmpty() )
     {
         tLog() << Q_FUNC_INFO << "Unable to find a proper connection endpoint; bailing";
         disconnectPlugin();
         return;
     }
+    else
+        tLog() << Q_FUNC_INFO << "Connecting to Hatchet endpoint at: " << url;
     
     m_ws = QWeakPointer< WebSocketWrapper >( new WebSocketWrapper( url ) );
     connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );
