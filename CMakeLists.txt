@@ -9,5 +9,6 @@ add_tomahawk_plugin(tomahawk
         TomahawkAccountConfig.ui
     LINK_LIBRARIES
         ${TOMAHAWK_LIBRARIES}
+    SHARED_LIB
 )
 
