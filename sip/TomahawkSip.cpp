@@ -179,7 +179,6 @@ TomahawkSipPlugin::onWsOpened()
     registerMap[ "port" ] = Servent::instance()->externalPort();
     registerMap[ "dbid" ] = Database::instance()->impl()->dbid();
     registerMap[ "accesstoken" ] = m_token;
-    registerMap[ "username" ] = m_account->credentials()[ "username" ].toString();
 
     if ( !sendBytes( registerMap ) )
     {
