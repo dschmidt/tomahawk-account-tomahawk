@@ -28,7 +28,6 @@
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
     , m_sipState( Closed )
-    , m_state( Tomahawk::Accounts::Account::Disconnected )
 {
     tLog() << Q_FUNC_INFO;
 
@@ -45,7 +44,8 @@ TomahawkSipPlugin::~TomahawkSipPlugin()
     }
 
     m_sipState = Closed;
-    m_state = Tomahawk::Accounts::Account::Disconnected;
+
+    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
 
     foreach ( QString dbid, m_knownPeers.keys() )
         delete m_knownPeers[ dbid ];
@@ -68,9 +68,8 @@ TomahawkSipPlugin::connectPlugin()
         return;
     }
 
-    m_state = Tomahawk::Accounts::Account::Connecting;
-    emit stateChanged( m_state );
-    qobject_cast< Tomahawk::Accounts::TomahawkAccount* >( account() )->fetchAccessTokens();
+    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connecting );
+    tomahawkAccount()->fetchAccessTokens();
 }
 
 
@@ -84,8 +83,8 @@ TomahawkSipPlugin::disconnectPlugin()
     }
 
     m_sipState = Closed;
-    m_state = Tomahawk::Accounts::Account::Disconnected;
-    emit stateChanged( m_state );
+
+    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
 }
 
 
@@ -130,8 +129,7 @@ TomahawkSipPlugin::makeWsConnection()
     connect( m_ws.data(), SIGNAL( message( QString ) ), this, SLOT( onWsMessage( QString ) ) );
     m_ws.data()->start();
 
-    m_state = Tomahawk::Accounts::Account::Connected;
-    emit stateChanged( m_state );
+    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
 }
 
 bool
@@ -225,8 +223,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         {
             tLog() << Q_FUNC_INFO << "Registered successfully";
             m_sipState = Connected;
-            m_state = Tomahawk::Accounts::Account::Connected;
-            emit stateChanged( m_state );
+            tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
             return;
         }
         else
@@ -329,4 +326,11 @@ TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
 
     PeerInfo* info = m_knownPeers[ valMap[ "dbid" ].toString() ];
     Servent::instance()->connectToPeer( info->host, info->port, valMap[ "offerkey" ].toString(), info->username, info->dbid );
+}
+
+
+Tomahawk::Accounts::TomahawkAccount*
+TomahawkSipPlugin::tomahawkAccount() const
+{
+	return qobject_cast< Tomahawk::Accounts::TomahawkAccount* >( m_account );
 }

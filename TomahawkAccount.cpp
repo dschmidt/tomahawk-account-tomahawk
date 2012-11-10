@@ -121,6 +121,15 @@ TomahawkAccount::deauthenticate()
 }
 
 
+void
+TomahawkAccount::setConnectionState( Account::ConnectionState connectionState )
+{
+    m_state = connectionState;
+
+    emit connectionStateChanged( connectionState );
+}
+
+
 Account::ConnectionState
 TomahawkAccount::connectionState() const
 {
@@ -136,7 +145,6 @@ TomahawkAccount::sipPlugin()
         tLog() << Q_FUNC_INFO;
         m_tomahawkSipPlugin = QWeakPointer< TomahawkSipPlugin >( new TomahawkSipPlugin( this ) );
 
-        connect( m_tomahawkSipPlugin.data(), SIGNAL( stateChanged( Tomahawk::Accounts::Account::ConnectionState ) ), this, SIGNAL( connectionStateChanged( Tomahawk::Accounts::Account::ConnectionState ) ) );
         return m_tomahawkSipPlugin.data();
     }
     return m_tomahawkSipPlugin.data();

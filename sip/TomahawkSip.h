@@ -23,6 +23,12 @@
 #include "sip/SipPlugin.h"
 #include "accounts/Account.h"
 
+namespace Tomahawk {
+    namespace Accounts {
+        class TomahawkAccount;
+    }
+}
+
 class WebSocketWrapper;
 
 class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
@@ -55,10 +61,6 @@ public:
     virtual ~TomahawkSipPlugin();
 
     virtual bool isValid() const;
-    virtual Tomahawk::Accounts::Account::ConnectionState connectionState() const { return m_state; }
-
-signals:
-    void stateChanged( Tomahawk::Accounts::Account::ConnectionState );
 
 public slots:
     virtual void connectPlugin();
@@ -80,14 +82,15 @@ private:
     bool checkKeys( QStringList keys, QVariantMap map );
     void newPeer( QVariantMap valMap );
     void peerAuthorization( QVariantMap valMap );
+    Tomahawk::Accounts::TomahawkAccount* tomahawkAccount() const;
+
     QWeakPointer< WebSocketWrapper > m_ws;
     QString m_token;
 
     SipState m_sipState;
 
     QHash< QString, PeerInfo* > m_knownPeers;
-    
-    Tomahawk::Accounts::Account::ConnectionState m_state;
+
 };
 
 #endif

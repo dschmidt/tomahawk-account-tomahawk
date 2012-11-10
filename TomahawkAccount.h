@@ -66,7 +66,10 @@ public:
     void authenticate();
     void deauthenticate();
     bool isAuthenticated() const;
+
+    void setConnectionState( Account::ConnectionState connectionState );
     ConnectionState connectionState() const;
+
 
     virtual Tomahawk::InfoSystem::InfoPluginPtr infoPlugin() { return Tomahawk::InfoSystem::InfoPluginPtr(); }
     SipPlugin* sipPlugin();
