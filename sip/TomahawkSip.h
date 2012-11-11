@@ -21,13 +21,7 @@
 
 #include "accounts/AccountDllMacro.h"
 #include "sip/SipPlugin.h"
-#include "accounts/Account.h"
-
-namespace Tomahawk {
-    namespace Accounts {
-        class TomahawkAccount;
-    }
-}
+#include "../TomahawkAccount.h"
 
 class WebSocketWrapper;
 
@@ -70,6 +64,9 @@ public slots:
     void addContact( const QString &, const QString& ) {}
     void sendMsg( const QString&, const SipInfo& ) {}
 
+signals:
+    void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
+
 private slots:
     void makeWsConnection();
     void onWsOpened();
@@ -90,7 +87,6 @@ private:
     SipState m_sipState;
 
     QHash< QString, PeerInfo* > m_knownPeers;
-
 };
 
 #endif

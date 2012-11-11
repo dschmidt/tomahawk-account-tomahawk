@@ -32,6 +32,7 @@ namespace Tomahawk {
 namespace Accounts {
 
 class FacebookAccount;
+class TomahawkAccount;
 
 class FacebookAccountConfig : public QWidget
 {
@@ -40,11 +41,18 @@ public:
     explicit FacebookAccountConfig( FacebookAccount* account );
     virtual ~FacebookAccountConfig();
 
+protected:
+    void showEvent( QShowEvent* event );
+
 private slots:
+    void connectToFacebook();
 
 private:
+    void toggleRegisterArea( bool show );
+
     Ui::FacebookAccountConfig* m_ui;
     FacebookAccount* m_account;
+    QWeakPointer<TomahawkAccount> m_tomahawkAccount;
 };
 
 }

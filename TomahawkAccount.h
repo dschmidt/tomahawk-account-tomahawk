@@ -22,9 +22,10 @@
 
 #include "accounts/Account.h"
 #include "../AccountDllMacro.h"
-#include "sip/TomahawkSip.h"
 
 class QNetworkReply;
+
+class TomahawkSipPlugin;
 
 namespace Tomahawk
 {
@@ -46,7 +47,7 @@ public:
     virtual QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
     virtual bool isUnique() const { return true; }
     AccountTypes types() const { return AccountTypes( SipType ); };
-    virtual bool allowUserCreation() const { return false; }
+//    virtual bool allowUserCreation() const { return false; }
 #ifndef ENABLE_HEADLESS
     virtual QPixmap icon() const;
 #endif
@@ -59,6 +60,10 @@ class ACCOUNTDLLEXPORT TomahawkAccount : public Account
 {
     Q_OBJECT
 public:
+    enum Service {
+        Facebook = 0
+    };
+
     TomahawkAccount( const QString &accountId );
     virtual ~TomahawkAccount();
 
@@ -84,6 +89,8 @@ public:
 
     void fetchAccessTokens();
 
+    QString authUrlForService( const Service& service ) const;
+
 signals:
     void deauthenticated();
     void accessTokensFetched();
@@ -94,6 +101,7 @@ private slots:
     void onPasswordLoginFinished( QNetworkReply*, const QString& username );
     void onFetchAccessTokensFinished();
 
+    void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
 private:
     QByteArray authToken() const;
 
@@ -108,6 +116,7 @@ private:
     Account::ConnectionState m_state;
 
     QWeakPointer< TomahawkSipPlugin > m_tomahawkSipPlugin;
+    QHash< Service, QString > m_extraAuthUrls;
 
     static TomahawkAccount* s_instance;
     friend class TomahawkAccountConfig;

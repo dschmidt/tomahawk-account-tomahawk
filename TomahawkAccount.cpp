@@ -21,7 +21,8 @@
 #include "TomahawkAccountConfig.h"
 #include "utils/Closure.h"
 #include "utils/Logger.h"
-#include <utils/TomahawkUtils.h>
+#include "sip/TomahawkSip.h"
+#include "utils/TomahawkUtils.h"
 
 #include <QtPlugin>
 #include <QNetworkRequest>
@@ -152,6 +153,8 @@ TomahawkAccount::sipPlugin()
     {
         tLog() << Q_FUNC_INFO;
         m_tomahawkSipPlugin = QWeakPointer< TomahawkSipPlugin >( new TomahawkSipPlugin( this ) );
+        connect( m_tomahawkSipPlugin.data(), SIGNAL( authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service, QString ) ),
+                 this, SLOT( authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service, QString ) ) );
 
         return m_tomahawkSipPlugin.data();
     }
@@ -313,6 +316,21 @@ TomahawkAccount::onFetchAccessTokensFinished()
 
     emit accessTokensFetched();
 }
+
+
+QString
+TomahawkAccount::authUrlForService( const Service &service ) const
+{
+    return m_extraAuthUrls.value( service, QString() );
+}
+
+
+void
+TomahawkAccount::authUrlDiscovered( Service service, const QString &authUrl )
+{
+    m_extraAuthUrls[ service ] = authUrl;
+}
+
 
 QNetworkReply*
 TomahawkAccount::buildRequest( const QString& command, const QVariantMap& params ) const

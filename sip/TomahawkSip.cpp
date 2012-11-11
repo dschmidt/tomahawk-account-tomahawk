@@ -238,6 +238,10 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         tLog() << Q_FUNC_INFO << "Got a message from a non connected socket?";
         return;
     }
+    else if ( retMap.value( "type", QString() ).toString() == "fbauth" )
+    {
+        emit authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Facebook, retMap.value( "authurl" ).toString() );
+    }
     else if ( !retMap.contains( "command" ) ||
                 !retMap[ "command" ].canConvert< QString >() )
     {

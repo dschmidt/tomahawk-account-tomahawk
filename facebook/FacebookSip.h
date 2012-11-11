@@ -16,8 +16,8 @@
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TOMAHAWK_SIP_H
-#define TOMAHAWK_SIP_H
+#ifndef FACEBOOK_SIP_H
+#define FACEBOOK_SIP_H
 
 #include "accounts/AccountDllMacro.h"
 #include "sip/SipPlugin.h"

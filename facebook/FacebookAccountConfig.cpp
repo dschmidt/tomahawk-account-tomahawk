@@ -18,10 +18,13 @@
 
 #include "FacebookAccountConfig.h"
 #include "FacebookAccount.h"
+#include "../TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
 
 #include "ui_FacebookAccountConfig.h"
+
+#include <QUrl>
 
 using namespace Tomahawk;
 using namespace Accounts;
@@ -34,9 +37,55 @@ FacebookAccountConfig::FacebookAccountConfig( FacebookAccount* account )
     Q_ASSERT( m_account );
 
     m_ui->setupUi( this );
+    toggleRegisterArea( false );
+
+    connect( m_ui->connectButton, SIGNAL( clicked() ), this, SLOT( connectToFacebook() ) );
 }
 
 FacebookAccountConfig::~FacebookAccountConfig()
 {
 
+}
+
+void
+FacebookAccountConfig::showEvent( QShowEvent* event )
+{
+    m_tomahawkAccount = QWeakPointer<TomahawkAccount>( TomahawkAccount::instance() );
+}
+
+void
+FacebookAccountConfig::connectToFacebook()
+{
+    if ( m_tomahawkAccount.isNull() )
+    {
+        tLog() << "No tomahawk account when trying to connect to facebook!?";
+        return;
+    }
+
+    if ( !m_tomahawkAccount.data()->isAuthenticated() )
+    {
+        toggleRegisterArea( true );
+    }
+    else if ( !m_tomahawkAccount.data()->authUrlForService( TomahawkAccount::Facebook ).isEmpty() )
+    {
+        // Handle facebook register w/ stored auth from tomahawk account
+        const QUrl authUrl = QUrl::fromUserInput( m_tomahawkAccount.data()->authUrlForService( TomahawkAccount::Facebook ) );
+        tDebug() << "Auth with facebook with url:" << authUrl;
+    }
+}
+
+
+// TODO make a reusable component from TomahawkAccountConfig
+void
+FacebookAccountConfig::toggleRegisterArea( bool show )
+{
+    m_ui->emailEdit->setVisible( show );
+    m_ui->emailLabel->setVisible( show );
+    m_ui->passwordEdit->setVisible( show );
+    m_ui->passwordLabel->setVisible( show );
+    m_ui->usernameEdit->setVisible( show );
+    m_ui->usernameLabel->setVisible( show );
+    m_ui->errorLabel->setVisible( show );
+//    m_ui->registerSpacer->setVisible( show );
+    m_ui->registerButton->setVisible( show );
 }
