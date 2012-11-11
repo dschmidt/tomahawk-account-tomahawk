@@ -329,7 +329,17 @@ TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
     }
 
     PeerInfo* info = m_knownPeers[ valMap[ "dbid" ].toString() ];
-    Servent::instance()->connectToPeer( info->host, info->port, valMap[ "offerkey" ].toString(), info->username, info->dbid );
+    if( !Servent::instance()->visibleExternally() ||
+            Servent::instance()->externalAddress() < info->host ||
+            ( Servent::instance()->externalAddress() == info->host && Servent::instance()->externalPort() < info->port ) )
+        {
+            tDebug() << "Initiate connection to" << info->dbid << "at" << info->host;
+            Servent::instance()->connectToPeer( info->host,
+                                          info->port,
+                                          valMap[ "offerkey" ].toString(),
+                                          info->username,
+                                          info->dbid );
+        }
 }
 
 
