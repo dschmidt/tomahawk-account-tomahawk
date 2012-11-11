@@ -19,6 +19,7 @@ add_tomahawk_plugin(facebook
         facebook/FacebookAccount.cpp
         facebook/FacebookAccountConfig.cpp
         facebook/FacebookSip.cpp
+        facebook/FacebookAuthDialog.cpp
     UI
         facebook/FacebookAccountConfig.ui
     LINK_LIBRARIES

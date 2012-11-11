@@ -21,6 +21,8 @@
 #include "../TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
+#include "FacebookAuthDialog.h"
+#include "utils/Closure.h"
 
 #include "ui_FacebookAccountConfig.h"
 
@@ -71,7 +73,17 @@ FacebookAccountConfig::connectToFacebook()
         // Handle facebook register w/ stored auth from tomahawk account
         const QUrl authUrl = QUrl::fromUserInput( m_tomahawkAccount.data()->authUrlForService( TomahawkAccount::Facebook ) );
         tDebug() << "Auth with facebook with url:" << authUrl;
+        FacebookAuthDialog* authdiag = new FacebookAuthDialog( authUrl, this );
+        NewClosure( authdiag, SIGNAL( finished( int ) ), this, SLOT( authDialogFinished( FacebookAuthDialog* ) ), authdiag );
+        authdiag->show();
     }
+}
+
+
+void
+FacebookAccountConfig::authDialogFinished( FacebookAuthDialog* dialog )
+{
+
 }
 
 

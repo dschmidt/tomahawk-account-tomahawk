@@ -16,49 +16,36 @@
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FACEBOOK_ACCOUNT_CONFIG_H
-#define FACEBOOK_ACCOUNT_CONFIG_H
+#ifndef FACEBOOKAUTHDIALOG_H
+#define FACEBOOKAUTHDIALOG_H
 
-#include <QWidget>
-#include <QVariantMap>
+#include <QDialog>
+#include <QUrl>
+#include <QMetaType>
 
-class QNetworkReply;
+class QWebView;
 
-namespace Ui {
-    class FacebookAccountConfig;
-};
-
-class FacebookAuthDialog;
-
-namespace Tomahawk {
-namespace Accounts {
-
-class FacebookAccount;
-class TomahawkAccount;
-
-class FacebookAccountConfig : public QWidget
+class FacebookAuthDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit FacebookAccountConfig( FacebookAccount* account );
-    virtual ~FacebookAccountConfig();
+    explicit FacebookAuthDialog(const QUrl& authUrl, QWidget *parent = 0);
+    virtual ~FacebookAuthDialog();
 
-protected:
-    void showEvent( QShowEvent* event );
+signals:
+
+public slots:
 
 private slots:
-    void connectToFacebook();
-    void authDialogFinished( FacebookAuthDialog* dialog );
+    void urlChanged( const QUrl& url );
+    void loadFinished( bool ok );
 
 private:
-    void toggleRegisterArea( bool show );
-
-    Ui::FacebookAccountConfig* m_ui;
-    FacebookAccount* m_account;
-    QWeakPointer<TomahawkAccount> m_tomahawkAccount;
+    QWebView* m_webView;
+    QUrl m_authUrl;
+    bool m_redirectedToHatchet;
 };
 
-}
-}
+Q_DECLARE_METATYPE( FacebookAuthDialog* )
 
-#endif
+#endif // FACEBOOKAUTHDIALOG_H
