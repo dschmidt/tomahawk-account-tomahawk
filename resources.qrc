@@ -2,7 +2,5 @@
   <qresource prefix="/">
     <file>tomahawk-icon-64x64.png</file>
     <file>tomahawk-icon-128x128.png</file>
-    <file>facebook-icon-64x64.png</file>
-    <file>facebook-icon-128x128.png</file>
   </qresource>
 </RCC>
