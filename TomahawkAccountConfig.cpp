@@ -20,7 +20,7 @@
 #include "TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
-#include <utils/WebSocketWrapper.h>
+#include "sip/WebSocketWrapper.h"
 
 #include "ui_TomahawkAccountConfig.h"
 

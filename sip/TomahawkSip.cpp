@@ -20,7 +20,7 @@
 #include <accounts/tomahawk/TomahawkAccount.h>
 
 #include <network/Servent.h>
-#include <utils/WebSocketWrapper.h>
+#include "WebSocketWrapper.h"
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
 #include "network/ControlConnection.h"
