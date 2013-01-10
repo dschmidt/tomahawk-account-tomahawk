@@ -24,8 +24,8 @@
 #include "utils/Logger.h"
 #include "utils/TomahawkUtils.h"
 
-#include <parser.h>
-#include <serializer.h>
+#include <qjson/parser.h>
+#include <qjson/serializer.h>
 
 #include <QtPlugin>
 

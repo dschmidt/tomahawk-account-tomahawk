@@ -30,8 +30,8 @@
 #include <QNetworkReply>
 #include <QUrl>
 
-#include <parser.h>
-#include <serializer.h>
+#include <qjson/parser.h>
+#include <qjson/serializer.h>
 
 using namespace Tomahawk;
 using namespace Accounts;
