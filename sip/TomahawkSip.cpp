@@ -28,6 +28,7 @@
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
     , m_sipState( Closed )
+    , m_version( 0 )
 {
     tLog() << Q_FUNC_INFO;
 
@@ -83,6 +84,7 @@ TomahawkSipPlugin::disconnectPlugin()
     }
 
     m_sipState = Closed;
+    m_version = 0;
 
     tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
 }
@@ -165,21 +167,8 @@ TomahawkSipPlugin::onWsOpened()
         return;
     }
     
-    m_sipState = Registering;
+    m_sipState = AcquiringVersion;
     
-    QVariantMap registerMap;
-    registerMap[ "command" ] = "register";
-    registerMap[ "host" ] = Servent::instance()->externalAddress();
-    registerMap[ "port" ] = Servent::instance()->externalPort();
-    registerMap[ "dbid" ] = Database::instance()->impl()->dbid();
-    registerMap[ "accesstoken" ] = m_token;
-
-    if ( !sendBytes( registerMap ) )
-    {
-        tLog() << Q_FUNC_INFO << "Failed sending message";
-        m_sipState = Closed;
-        return;
-    }
 }
 
 
@@ -215,7 +204,43 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
 
     QVariantMap retMap = jsonVariant.toMap();
 
-    if ( m_sipState == Registering )
+    if ( m_sipState == AcquiringVersion )
+    {
+        tLog() << Q_FUNC_INFO << "In acquiring version state, expecting version information";
+        if ( !retMap.contains( "version" ) )
+        {
+            tLog() << Q_FUNC_INFO << "Failed to acquire version information";
+            disconnectPlugin();
+            return;
+        }
+        bool ok = false;
+        int ver = retMap[ "version" ].toInt( &ok );
+        if ( ver == 0 || !ok )
+        {
+            tLog() << Q_FUNC_INFO << "Failed to acquire version information";
+            disconnectPlugin();
+            return;
+        }
+
+        m_version = ver;
+
+        QVariantMap registerMap;
+        registerMap[ "command" ] = "register";
+        registerMap[ "host" ] = Servent::instance()->externalAddress();
+        registerMap[ "port" ] = Servent::instance()->externalPort();
+        registerMap[ "dbid" ] = Database::instance()->impl()->dbid();
+        registerMap[ "accesstoken" ] = m_token;
+
+        if ( !sendBytes( registerMap ) )
+        {
+            tLog() << Q_FUNC_INFO << "Failed sending message";
+            disconnectPlugin();
+            return;
+        }
+        
+        m_sipState = Registering;
+    }
+    else if ( m_sipState == Registering )
     {
         tLog() << Q_FUNC_INFO << "In registering state, checking status of registration";
         if ( retMap.contains( "status" ) &&
@@ -230,6 +255,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         {
             tLog() << Q_FUNC_INFO << "Failed to register successfully";
             m_ws.data()->stop();
+            return;
         }
     }
     else if ( m_sipState != Connected )

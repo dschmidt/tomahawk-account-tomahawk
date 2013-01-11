@@ -230,7 +230,7 @@ TomahawkAccount::loginWithPassword( const QString& username, const QString& pass
 void
 TomahawkAccount::fetchAccessTokens()
 {
-    if ( authToken().isEmpty() )
+    if ( username().isEmpty() || authToken().isEmpty() )
     {
         tLog() << "No authToken, not logging in";
         return;
@@ -238,6 +238,7 @@ TomahawkAccount::fetchAccessTokens()
 
     QVariantMap params;
     params[ "authtoken" ] = authToken();
+    params[ "username" ] = username();
 
     tLog() << "Fetching access tokens";
     QNetworkReply* reply = buildRequest( "tokens", params );

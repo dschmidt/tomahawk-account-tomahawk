@@ -30,9 +30,10 @@ class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
     Q_OBJECT
 
     enum SipState {
-        Closed,
+        AcquiringVersion,
         Registering,
-        Connected
+        Connected,
+        Closed
     };
 
     struct PeerInfo {
@@ -85,6 +86,8 @@ private:
     QString m_token;
 
     SipState m_sipState;
+
+    int m_version;
 
     QHash< QString, PeerInfo* > m_knownPeers;
 };
