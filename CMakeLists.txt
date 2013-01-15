@@ -1,6 +1,15 @@
+cmake_minimum_required(VERSION 2.8)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+find_package(Tomahawk REQUIRED)
+include( ${TOMAHAWK_USE_FILE} )
+include_directories( ${TOMAHAWK_INCLUDE_DIRS} )
+
+
+find_package(WebsocketPP REQUIRED)
 include_directories(${WEBSOCKETPP_INCLUDE_DIR})
 
-add_tomahawk_plugin(tomahawk
+tomahawk_add_plugin(tomahawk
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
     SOURCES
@@ -11,7 +20,6 @@ add_tomahawk_plugin(tomahawk
     UI
         TomahawkAccountConfig.ui
     LINK_LIBRARIES
-        ${TOMAHAWK_LIBRARIES}
         ${WEBSOCKETPP_LIBRARIES}
 )
 

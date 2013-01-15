@@ -20,8 +20,8 @@
 #define TOMAHAWK_ACCOUNT_H
 
 
-#include "accounts/Account.h"
-#include "../AccountDllMacro.h"
+#include <accounts/Account.h>
+#include <accounts/AccountDllMacro.h>
 
 class QNetworkReply;
 

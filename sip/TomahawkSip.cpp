@@ -17,13 +17,15 @@
  */
 
 #include "TomahawkSip.h"
-#include <accounts/tomahawk/TomahawkAccount.h>
+
+#include "../TomahawkAccount.h"
 
 #include <network/Servent.h>
 #include "WebSocketWrapper.h"
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
 #include "network/ControlConnection.h"
+#include <utils/Logger.h>
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
@@ -317,9 +319,9 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
         tLog() << Q_FUNC_INFO << "Not visible externally, so not creating an offer";
         return;
     }
-    
+
     QString key = uuid();
-    ControlConnection* conn = new ControlConnection( Servent::instance(), QString() );
+    ControlConnection* conn = new ControlConnection( Servent::instance() );
 
     const QString& nodeid = valMap[ "dbid" ].toString();
     conn->setName( valMap[ "username" ].toString() );
@@ -360,11 +362,11 @@ TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
             ( Servent::instance()->externalAddress() == info->host && Servent::instance()->externalPort() < info->port ) )
         {
             tDebug() << "Initiate connection to" << info->dbid << "at" << info->host;
-            Servent::instance()->connectToPeer( info->host,
-                                          info->port,
-                                          valMap[ "offerkey" ].toString(),
-                                          info->username,
-                                          info->dbid );
+//             Servent::instance()->connectToPeer( info->host,
+//                                           info->port,
+//                                           valMap[ "offerkey" ].toString(),
+//                                           info->username,
+//                                           info->dbid );
         }
 }
 

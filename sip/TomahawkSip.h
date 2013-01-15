@@ -57,6 +57,8 @@ public:
 
     virtual bool isValid() const;
 
+    virtual void sendSipInfo( const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info ) {}
+
 public slots:
     virtual void connectPlugin();
     void disconnectPlugin();
