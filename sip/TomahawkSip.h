@@ -36,20 +36,6 @@ class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
         Closed
     };
 
-    struct PeerInfo {
-        QString username;
-        QString host;
-        uint port;
-        QString dbid;
-
-        PeerInfo( const QString &uname, const QString &hst, uint prt, const QString &dbd )
-            : username( uname )
-            , host( hst )
-            , port( prt )
-            , dbid( dbd )
-            {}
-    };
-    
 public:
     TomahawkSipPlugin( Tomahawk::Accounts::Account *account );
 
@@ -57,7 +43,7 @@ public:
 
     virtual bool isValid() const;
 
-    virtual void sendSipInfo( const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info ) {}
+    virtual void sendSipInfo( const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info );
 
 public slots:
     virtual void connectPlugin();
@@ -90,8 +76,6 @@ private:
     SipState m_sipState;
 
     int m_version;
-
-    QHash< QString, PeerInfo* > m_knownPeers;
 };
 
 #endif

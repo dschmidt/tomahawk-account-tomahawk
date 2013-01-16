@@ -22,9 +22,10 @@
 
 #include <network/Servent.h>
 #include "WebSocketWrapper.h"
+#include <sip/PeerInfo.h>
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
-#include "network/ControlConnection.h"
+#include <network/ControlConnection.h>
 #include <utils/Logger.h>
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
@@ -49,9 +50,6 @@ TomahawkSipPlugin::~TomahawkSipPlugin()
     m_sipState = Closed;
 
     tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
-
-    foreach ( QString dbid, m_knownPeers.keys() )
-        delete m_knownPeers[ dbid ];
 }
 
 
@@ -98,7 +96,7 @@ TomahawkSipPlugin::makeWsConnection()
     //Other things can request access tokens, so if we're already connected there's no need to pay attention
     if ( !m_ws.isNull() )
         return;
-    
+
     QVariantList tokensCreds = m_account->credentials()[ "accesstokens" ].toList();
     //FIXME: Don't blindly pick the first one that matches?
     QVariantMap connectVals;
@@ -116,7 +114,7 @@ TomahawkSipPlugin::makeWsConnection()
     QString url;
     if ( !connectVals.isEmpty() )
         url = connectVals[ "host" ].toString() + ':' + connectVals[ "port" ].toString();
-    
+
     if ( url.isEmpty() )
     {
         tLog() << Q_FUNC_INFO << "Unable to find a proper connection endpoint; bailing";
@@ -125,7 +123,7 @@ TomahawkSipPlugin::makeWsConnection()
     }
     else
         tLog() << Q_FUNC_INFO << "Connecting to Hatchet endpoint at: " << url;
-    
+
     m_ws = QWeakPointer< WebSocketWrapper >( new WebSocketWrapper( url ) );
     connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );
     connect( m_ws.data(), SIGNAL( failed( QString ) ), this, SLOT( onWsFailed( QString ) ) );
@@ -145,7 +143,7 @@ TomahawkSipPlugin::sendBytes( QVariantMap jsonMap )
         tLog() << Q_FUNC_INFO << "was told to send bytes on a closed connection, not gonna do it";
         return false;
     }
-    
+
     QJson::Serializer serializer;
     QByteArray bytes = serializer.serialize( jsonMap );
     if ( bytes.isEmpty() )
@@ -168,9 +166,9 @@ TomahawkSipPlugin::onWsOpened()
         tLog() << Q_FUNC_INFO << "access token or username is empty, aborting";
         return;
     }
-    
+
     m_sipState = AcquiringVersion;
-    
+
 }
 
 
@@ -239,7 +237,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
             disconnectPlugin();
             return;
         }
-        
+
         m_sipState = Registering;
     }
     else if ( m_sipState == Registering )
@@ -304,72 +302,86 @@ TomahawkSipPlugin::checkKeys( QStringList keys, QVariantMap map )
 void
 TomahawkSipPlugin::newPeer( QVariantMap valMap )
 {
-    tLog() << Q_FUNC_INFO;
+    const QString username = valMap[ "username" ].toString();
+    const QString dbid = valMap[ "dbid" ].toString();
+    const QString host = valMap[ "host" ].toString();
+    unsigned int port = valMap[ "port" ].toUInt();
+
+    tLog() << Q_FUNC_INFO << "username:" << username << "dbid" << dbid;
+
     QStringList keys( QStringList() << "command" << "username" << "host" << "port" << "dbid" );
     if ( !checkKeys( keys, valMap ) )
         return;
 
-    PeerInfo* info = new PeerInfo( valMap[ "username" ].toString(), valMap[ "host" ].toString(),
-                        valMap[ "port" ].toUInt(), valMap[ "dbid" ].toString() );
+    Tomahawk::peerinfo_ptr peerInfo = Tomahawk::PeerInfo::get( this, dbid, Tomahawk::PeerInfo::AutoCreate );
+    peerInfo->setFriendlyName( username );
+    QVariantMap data;
+    data.insert( "dbid", QVariant::fromValue< QString >( dbid ) );
+    peerInfo->setData( data );
 
-    m_knownPeers[ valMap[ "dbid" ].toString() ] = info;
 
-    if( !Servent::instance()->visibleExternally() )
+    SipInfo sipInfo;
+    sipInfo.setUniqname( dbid );
+    if( !host.isEmpty() && port != 0 )
     {
-        tLog() << Q_FUNC_INFO << "Not visible externally, so not creating an offer";
-        return;
+        sipInfo.setHost( valMap[ "host" ].toString() );
+        sipInfo.setPort( valMap[ "port" ].toUInt() );
+        sipInfo.setVisible( true );
     }
-
-    QString key = uuid();
-    ControlConnection* conn = new ControlConnection( Servent::instance() );
-
-    const QString& nodeid = valMap[ "dbid" ].toString();
-    conn->setName( valMap[ "username" ].toString() );
-    conn->setId( nodeid );
-
-    Servent::instance()->registerOffer( key, conn );
-
-    QVariantMap sendMap;
-    sendMap[ "command" ] = "authorize-peer";
-    sendMap[ "dbid" ] = valMap[ "dbid" ].toString();
-    sendMap[ "offerkey" ] = key;
-
-    if ( !sendBytes( sendMap ) )
+    else
     {
-        tLog() << Q_FUNC_INFO << "Failed sending message";
-        return;
+        sipInfo.setVisible( false );
     }
+    peerInfo->setSipInfo( sipInfo );
+
+    peerInfo->setStatus( Tomahawk::PeerInfo::Online );
 }
 
 
 void
 TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
 {
-    tLog() << Q_FUNC_INFO;
+    tLog() << Q_FUNC_INFO << "dbid:" << valMap[ "dbid" ].toString() << "offerkey" << valMap[ "offerkey" ].toString();
+
     QStringList keys( QStringList() << "command" << "dbid" << "offerkey" );
     if ( !checkKeys( keys, valMap ) )
         return;
 
-    if ( !m_knownPeers.contains( valMap[ "dbid" ].toString() ) )
+
+    Tomahawk::peerinfo_ptr peerInfo = Tomahawk::PeerInfo::get( this, valMap[ "dbid" ].toString() );
+    if( peerInfo.isNull() )
     {
         tLog() << Q_FUNC_INFO << "Received a peer-authorization for a peer we don't know about";
         return;
     }
 
-    PeerInfo* info = m_knownPeers[ valMap[ "dbid" ].toString() ];
-    if( !Servent::instance()->visibleExternally() ||
-            Servent::instance()->externalAddress() < info->host ||
-            ( Servent::instance()->externalAddress() == info->host && Servent::instance()->externalPort() < info->port ) )
-        {
-            tDebug() << "Initiate connection to" << info->dbid << "at" << info->host;
-//             Servent::instance()->connectToPeer( info->host,
-//                                           info->port,
-//                                           valMap[ "offerkey" ].toString(),
-//                                           info->username,
-//                                           info->dbid );
-        }
+    SipInfo sipInfo = peerInfo->sipInfo();
+    sipInfo.setKey( valMap[ "offerkey" ].toString() );
+    peerInfo->setSipInfo( sipInfo );
 }
 
+
+void
+TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info)
+{
+    const QString dbid = receiver->data().toMap().value( "dbid" ).toString();
+    tLog() << Q_FUNC_INFO << "Send local info to " << receiver->friendlyName() << "(" << dbid << ") we are" << info.uniqname() << "with offerkey " << info.key();
+
+    QVariantMap sendMap;
+    sendMap[ "command" ] = "authorize-peer";
+    sendMap[ "dbid" ] = dbid;
+    sendMap[ "offerkey" ] = info.key();
+
+
+    if ( !sendBytes( sendMap ) )
+    {
+        tLog() << Q_FUNC_INFO << "Failed sending message";
+        return;
+    }
+
+
+
+}
 
 Tomahawk::Accounts::TomahawkAccount*
 TomahawkSipPlugin::tomahawkAccount() const
