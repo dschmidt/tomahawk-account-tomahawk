@@ -2,7 +2,7 @@ project(websocketpp)
 
 include_directories(${Boost_INCLUDE_DIRS})
 
-find_package(Boost COMPONENTS regex thread filesystem REQUIRED)
+find_package(Boost COMPONENTS regex thread filesystem random REQUIRED)
 find_package(OpenSSL REQUIRED)
 # find_package
 
