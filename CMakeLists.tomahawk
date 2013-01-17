@@ -1,3 +1,8 @@
+message(STATUS "Tomahawk account directory found, building it")
+
+set(WEBSOCKETPP_INCLUDE_DIR "${CMAKE_BINARY_DIR}/src/accounts/tomahawk/thirdparty/websocketpp/src/include")
+add_subdirectory(${CMAKE_SOURCE_DIR}/src/accounts/tomahawk/thirdparty/websocketpp)
+
 include_directories(${WEBSOCKETPP_INCLUDE_DIR})
 
 tomahawk_add_plugin(tomahawk
