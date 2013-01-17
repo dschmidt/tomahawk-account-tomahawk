@@ -32,7 +32,9 @@ set(websocketpp_md5_HDRS md5/md5.h md5/md5.hpp)
 
 set(websocketpp_HDRS base64/base64.h sha1/sha1.h md5/md5.hpp ${websocketpp_HDRS})
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-undefined" )
+if(UNIX AND NOT APPLE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-undefined")
+endif()
 add_library(tomahawk_websocketpp SHARED ${websocketpp_SRCS})
 set_target_properties(tomahawk_websocketpp PROPERTIES COMPILE_FLAGS -fPIC)
 target_link_libraries(tomahawk_websocketpp
