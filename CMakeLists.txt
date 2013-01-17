@@ -6,7 +6,7 @@ include( ${TOMAHAWK_USE_FILE} )
 include_directories( ${TOMAHAWK_INCLUDE_DIRS} )
 
 
-find_package(WebsocketPP REQUIRED)
+find_package(WebSocketPP REQUIRED)
 include_directories(${WEBSOCKETPP_INCLUDE_DIR})
 
 tomahawk_add_plugin(tomahawk
