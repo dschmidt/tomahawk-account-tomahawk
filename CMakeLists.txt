@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 2.8)
 
+if(NOT TOMAHAWK_LIBRARIES)
+    message(STATUS "BUILDING OUTSIDE TOMAHAWK")
+    find_package(Tomahawk REQUIRED)
+else()
+    message(STATUS "BUILDING INSIDE TOMAHAWK")
+    set(TOMAHAWK_USE_FILE "${CMAKE_SOURCE_DIR}/TomahawkUse.cmake")
+endif()
+include( ${TOMAHAWK_USE_FILE} )
+
 find_package(OpenSSL REQUIRED)
 
 set(WEBSOCKETPP_MAJOR_VERSION 0)
@@ -10,27 +19,14 @@ set(WEBSOCKETPP_VERSION_SONAME "${WEBSOCKETPP_MAJOR_VERSION}.${WEBSOCKETPP_MINOR
 set( WEBSOCKETPP_LIBRARY tomahawk_websocketpp )
 set( WEBSOCKETPP_LIBRARIES ${WEBSOCKETPP_LIBRARY} )
 
-# if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-#     include(CMakeLists.internal)
-# else()
-#     include(CMakeLists.tomahawk)
-# endif()
-
-find_package(Tomahawk REQUIRED)
-
 find_package(Boost COMPONENTS regex thread filesystem random system REQUIRED)
 
-set( WEBSOCKETPP_INCLUDE_DIR ${CMAKE_BINARY_DIR}/thirdparty/websocketpp/src/include )
-add_subdirectory( ${CMAKE_SOURCE_DIR}/thirdparty/websocketpp )
+set( WEBSOCKETPP_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/websocketpp/src/include )
+add_subdirectory( ${CMAKE_CURRENT_LIST_DIR}/thirdparty/websocketpp )
 
 include_directories(${WEBSOCKETPP_INCLUDE_DIR})
 
-# message(FATAL_ERROR "tomahawk: ${TOMAHAWK_INCLUDE_DIRS}")
-
-include( ${TOMAHAWK_USE_FILE} )
-
 include_directories( ${TOMAHAWK_INCLUDE_DIRS} )
-
 tomahawk_add_plugin(tomahawk
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
