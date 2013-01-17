@@ -1,10 +1,10 @@
 project(websocketpp)
 
-include_directories(${Boost_INCLUDE_DIRS})
 
 find_package(Boost COMPONENTS regex thread filesystem random REQUIRED)
 find_package(OpenSSL REQUIRED)
-# find_package
+
+include_directories(${Boost_INCLUDE_DIRS})
 
 set(websocketpp_SRCS base64/base64.cpp
                      md5/md5.c
@@ -35,6 +35,11 @@ set(websocketpp_HDRS base64/base64.h sha1/sha1.h md5/md5.hpp ${websocketpp_HDRS}
 if(UNIX AND NOT APPLE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-undefined")
 endif()
+
+get_cmake_property(_variableNames VARIABLES)
+foreach (_variableName ${_variableNames})
+  message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 add_library(tomahawk_websocketpp SHARED ${websocketpp_SRCS})
 set_target_properties(tomahawk_websocketpp PROPERTIES COMPILE_FLAGS -fPIC)
 target_link_libraries(tomahawk_websocketpp
