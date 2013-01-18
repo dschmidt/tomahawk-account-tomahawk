@@ -19,7 +19,7 @@ set(WEBSOCKETPP_VERSION_SONAME "${WEBSOCKETPP_MAJOR_VERSION}.${WEBSOCKETPP_MINOR
 set( WEBSOCKETPP_LIBRARY tomahawk_websocketpp )
 set( WEBSOCKETPP_LIBRARIES ${WEBSOCKETPP_LIBRARY} )
 
-find_package(Boost COMPONENTS regex thread filesystem random system REQUIRED)
+find_package(Boost COMPONENTS regex thread filesystem random system date_time REQUIRED)
 
 set( WEBSOCKETPP_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/websocketpp/src/include )
 add_subdirectory( ${CMAKE_CURRENT_LIST_DIR}/thirdparty/websocketpp )
@@ -38,6 +38,7 @@ tomahawk_add_plugin(tomahawk
     UI
         TomahawkAccountConfig.ui
     LINK_LIBRARIES
+        ${TOMAHAWK_LIBRARIES}
         ${WEBSOCKETPP_LIBRARIES}
 )
 
