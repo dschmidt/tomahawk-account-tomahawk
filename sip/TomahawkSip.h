@@ -23,6 +23,8 @@
 #include "sip/SipPlugin.h"
 #include "../TomahawkAccount.h"
 
+#include <QtCrypto>
+
 class WebSocketWrapper;
 
 class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
@@ -72,10 +74,9 @@ private:
 
     QWeakPointer< WebSocketWrapper > m_ws;
     QString m_token;
-
     SipState m_sipState;
-
     int m_version;
+    QCA::PublicKey* m_publicKey;
 };
 
 #endif

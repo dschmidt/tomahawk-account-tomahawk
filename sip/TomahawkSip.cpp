@@ -19,11 +19,9 @@
 #include "TomahawkSip.h"
 
 #include "../TomahawkAccount.h"
-#include "WebSocketWrapper.h"
-
-#include <QtCrypto>
 
 #include <network/Servent.h>
+#include "WebSocketWrapper.h"
 #include <sip/PeerInfo.h>
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
@@ -34,10 +32,22 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
     , m_sipState( Closed )
     , m_version( 0 )
+    , m_publicKey( 0 )
 {
     tLog() << Q_FUNC_INFO;
 
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
+
+    QFile pemFile( ":/hatchet.pem" );
+    pemFile.open( QIODevice::ReadOnly );
+    QCA::ConvertResult conversionResult;
+    QCA::PublicKey publicKey = QCA::PublicKey::fromPEM(pemFile.readAll(), &conversionResult);
+    if ( QCA::ConvertGood != conversionResult )
+    {
+        tLog() << Q_FUNC_INFO << "INVALID PUBKEY READ";
+        return;
+    }
+    m_publicKey = new QCA::PublicKey( publicKey );
 }
 
 
@@ -58,7 +68,7 @@ TomahawkSipPlugin::~TomahawkSipPlugin()
 bool
 TomahawkSipPlugin::isValid() const
 {
-    return m_account->enabled() && m_account->isAuthenticated();
+    return m_account->enabled() && m_account->isAuthenticated() && m_publicKey;
 }
 
 
@@ -170,7 +180,6 @@ TomahawkSipPlugin::onWsOpened()
     }
 
     m_sipState = AcquiringVersion;
-
 }
 
 
