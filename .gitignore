@@ -10,6 +10,8 @@ build/*
 Makefile*
 moc_*
 *~
+*.sublime-project
+*.sublime-workspace
 /tomahawk
 .kdev4
 *.kdev4
