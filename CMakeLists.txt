@@ -25,9 +25,12 @@ find_package(Boost COMPONENTS regex thread filesystem random system date_time RE
 set( WEBSOCKETPP_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/websocketpp/src/include )
 add_subdirectory( ${CMAKE_CURRENT_LIST_DIR}/thirdparty/websocketpp )
 
-include_directories(${WEBSOCKETPP_INCLUDE_DIR})
+include_directories(
+    ${WEBSOCKETPP_INCLUDE_DIR}
+    ${TOMAHAWK_INCLUDE_DIRS}
+    ${QCA2_INCLUDE_DIR}
+)
 
-include_directories( ${TOMAHAWK_INCLUDE_DIRS} )
 tomahawk_add_plugin(tomahawk
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
@@ -41,6 +44,7 @@ tomahawk_add_plugin(tomahawk
     LINK_LIBRARIES
         ${TOMAHAWK_LIBRARIES}
         ${WEBSOCKETPP_LIBRARIES}
+        ${QCA2_LIBRARIES}
 )
 
 

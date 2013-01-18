@@ -19,9 +19,11 @@
 #include "TomahawkSip.h"
 
 #include "../TomahawkAccount.h"
+#include "WebSocketWrapper.h"
+
+#include <QtCrypto>
 
 #include <network/Servent.h>
-#include "WebSocketWrapper.h"
 #include <sip/PeerInfo.h>
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
