@@ -24,7 +24,7 @@
 #ifndef _SHA1_H_
 #define _SHA1_H_
 
-#include "../common.hpp"
+#include "../dllexport.h"
 
 namespace websocketpp {
 
@@ -86,9 +86,9 @@ class _DLLEXPORT SHA1
 
         bool Computed;                      // Is the digest computed?
         bool Corrupted;                     // Is the message digest corruped?
-
+    
 };
 
 } // namespace websocketpp
-
+	
 #endif // _SHA1_H_

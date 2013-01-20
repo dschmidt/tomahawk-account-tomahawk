@@ -11,10 +11,10 @@
  *     * Neither the name of the WebSocket++ Project nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
  * ARE DISCLAIMED. IN NO EVENT SHALL PETER THORSON BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
@@ -22,17 +22,18 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * 
  */
 
 #ifndef WEBSOCKET_HYBI_UTIL_HPP
 #define WEBSOCKET_HYBI_UTIL_HPP
 
+#include "../dllexport.h"
 #include "../common.hpp"
 
 namespace websocketpp {
 namespace processor {
-namespace hybi_util {
+namespace hybi_util {    
 
 // type used to store a masking key
 union masking_key_type {
@@ -42,13 +43,13 @@ union masking_key_type {
 
 // extract a masking key into a value the size of a machine word. Machine word
 // size must be 4 or 8
-_DLLEXPORT size_t prepare_masking_key(const masking_key_type& key);
+size_t _DLLEXPORT prepare_masking_key(const masking_key_type& key);
 
 // circularly shifts the supplied prepared masking key by offset bytes
 // prepared_key must be the output of prepare_masking_key with the associated
 //    restrictions on the machine word size.
 // offset must be 0, 1, 2, or 3
-_DLLEXPORT size_t circshift_prepared_key(size_t prepared_key, size_t offset);
+size_t _DLLEXPORT circshift_prepared_key(size_t prepared_key, size_t offset);
 
 // basic byte by byte mask
 template <typename iter_type>
@@ -61,7 +62,7 @@ void byte_mask(iter_type b, iter_type e, const masking_key_type& key, size_t key
 }
 
 // exactly masks the bytes from start to end using key `key`
-_DLLEXPORT void word_mask_exact(char* data,size_t length,const masking_key_type& key);
+void _DLLEXPORT word_mask_exact(char* data,size_t length,const masking_key_type& key);
 
 } // namespace hybi_util
 } // namespace processor

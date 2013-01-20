@@ -27,6 +27,8 @@ set(websocketpp_base64_HDRS base64/base64.h)
 set(websocketpp_sha1_HDRS sha1/sha1.h)
 set(websocketpp_md5_HDRS md5/md5.h md5/md5.hpp)
 
+set(websocketpp_root_HDRS dllexport.h ${websocketpp_root_HDRS})
+
 set(websocketpp_HDRS base64/base64.h sha1/sha1.h md5/md5.hpp ${websocketpp_HDRS})
 
 if(UNIX AND NOT APPLE)
@@ -38,6 +40,7 @@ set_target_properties(tomahawk_websocketpp PROPERTIES COMPILE_FLAGS -fPIC)
 target_link_libraries(tomahawk_websocketpp
     ${Boost_LIBRARIES}
     ${OPENSSL_LIBRARIES}
+    crypto
 )
 
 include(GNUInstallDirs)

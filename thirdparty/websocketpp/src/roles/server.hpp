@@ -174,6 +174,8 @@ public:
     // handler interface callback base class
     class handler_interface {
     public:
+        virtual ~handler_interface() {}
+        
         virtual void on_handshake_init(connection_ptr con) {}
         
         virtual void validate(connection_ptr con) {}
@@ -199,18 +201,48 @@ public:
        m_state(IDLE),
        m_timer(m,boost::posix_time::seconds(0)) {}
     
-    void listen(uint16_t port, size_t n = 1);
-    void listen(const boost::asio::ip::tcp::endpoint& e, size_t num_threads = 1);
+    void start_listen(uint16_t port, size_t num_threads = 1);
+    void start_listen(const boost::asio::ip::tcp::endpoint& e, size_t num_threads = 1);
     // uses internal resolver
-    void listen(const std::string &host, const std::string &service, size_t n = 1);
+    void start_listen(const std::string &host, const std::string &service, size_t num_threads = 1);
     
     template <typename InternetProtocol> 
-    void listen(const InternetProtocol &internet_protocol, uint16_t port, size_t n = 1) {
+    void start_listen(const InternetProtocol &internet_protocol, uint16_t port, size_t num_threads = 1) {
         m_endpoint.m_alog->at(log::alevel::DEVEL) 
             << "role::server listening on port " << port << log::endl;
         boost::asio::ip::tcp::endpoint e(internet_protocol, port);
-        listen(e,n);
+        start_listen(e,num_threads);
     }
+
+    void stop_listen(bool join);
+
+    // legacy interface
+    void listen(uint16_t port, size_t num_threads = 1) {
+		start_listen(port,num_threads>1 ? num_threads : 0);
+		if(num_threads > 1) {
+			stop_listen(true);
+		}
+    }
+    void listen(const boost::asio::ip::tcp::endpoint& e, size_t num_threads = 1) {
+		start_listen(e,num_threads>1 ? num_threads : 0);
+		if(num_threads > 1) {
+			stop_listen(true);
+		}
+    }
+    void listen(const std::string &host, const std::string &service, size_t num_threads = 1) {
+		start_listen(host,service,num_threads>1 ? num_threads : 0);
+		if(num_threads > 1) {
+			stop_listen(true);
+		}
+    }
+    template <typename InternetProtocol> 
+    void listen(const InternetProtocol &internet_protocol, uint16_t port, size_t num_threads = 1) {
+		start_listen(internet_protocol,port,num_threads>1 ? num_threads : 0);
+		if(num_threads > 1) {
+			stop_listen(true);
+		}
+    }
+
 protected:
     bool is_server() {
         return true;
@@ -238,10 +270,12 @@ private:
     state                           m_state;
     
     boost::asio::deadline_timer     m_timer;
+
+    std::vector< boost::shared_ptr<boost::thread> > m_listening_threads;
 };
 
 template <class endpoint>
-void server<endpoint>::listen(const boost::asio::ip::tcp::endpoint& e,size_t num_threads) {
+void server<endpoint>::start_listen(const boost::asio::ip::tcp::endpoint& e,size_t num_threads) {
     {
         boost::unique_lock<boost::recursive_mutex> lock(m_endpoint.m_lock);
         
@@ -257,38 +291,67 @@ void server<endpoint>::listen(const boost::asio::ip::tcp::endpoint& e,size_t num
         this->start_accept();
     }
     
-    if (num_threads == 1) {
-        m_endpoint.run_internal();
-    } else if (num_threads > 1 && num_threads <= MAX_THREAD_POOL_SIZE) {
-        std::vector< boost::shared_ptr<boost::thread> > threads;
-        
-        for (std::size_t i = 0; i < num_threads; ++i) {
-            boost::shared_ptr<boost::thread> thread(
-                new boost::thread(boost::bind(
-                        &endpoint_type::run_internal,
-                        &m_endpoint
-                ))
-            );
-            threads.push_back(thread);
-        }
-        
-        for (std::size_t i = 0; i < threads.size(); ++i) {
-            threads[i]->join();
-        }
-    } else {
+    if (num_threads > MAX_THREAD_POOL_SIZE) {       
         throw exception("listen called with invalid num_threads value");
+    }
+
+    m_state = LISTENING;
+
+    for (std::size_t i = 0; i < num_threads; ++i) {
+        boost::shared_ptr<boost::thread> thread(
+            new boost::thread(boost::bind(
+                    &endpoint_type::run_internal,
+                    &m_endpoint
+            ))
+        );
+        m_listening_threads.push_back(thread);
+    }
+
+    if(num_threads == 0)
+    {
+        m_endpoint.run_internal();
+        m_state = IDLE;
     }
 }
 
-// server<endpoint> Implimentation
-// TODO: provide a way to stop/reset the server endpoint
 template <class endpoint>
-void server<endpoint>::listen(uint16_t port, size_t n) {
-    listen(boost::asio::ip::tcp::v6(), port, n);
+void server<endpoint>::stop_listen(bool join) {
+    {
+    	boost::unique_lock<boost::recursive_mutex> lock(m_endpoint.m_lock);
+	
+		if (m_state != LISTENING) {
+			throw exception("stop_listen called from invalid state");
+		}
+    }
+    
+    // If there are multiple threads we should join before stopping. Normally
+    // this will result in WebSocket++ blocking here waiting for the workers to
+    if (join) {
+    	for (std::size_t i = 0; i < m_listening_threads.size(); ++i) {
+			m_listening_threads[i]->join();
+		}
+	
+		m_listening_threads.clear();
+    }
+    
+	boost::unique_lock<boost::recursive_mutex> lock(m_endpoint.m_lock);
+	
+	if (m_state != LISTENING) {
+		throw exception("stop_listen called from invalid state");
+	}
+	
+	// Clean up
+	m_acceptor.close();
+	m_state = IDLE;
 }
 
 template <class endpoint>
-void server<endpoint>::listen(const std::string &host, const std::string &service, size_t n) {
+void server<endpoint>::start_listen(uint16_t port, size_t num_threads) {
+    start_listen(boost::asio::ip::tcp::v6(), port, num_threads);
+}
+
+template <class endpoint>
+void server<endpoint>::start_listen(const std::string &host, const std::string &service, size_t num_threads) {
     boost::asio::ip::tcp::resolver resolver(m_io_service);
     boost::asio::ip::tcp::resolver::query query(host, service);
     boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
@@ -297,12 +360,19 @@ void server<endpoint>::listen(const std::string &host, const std::string &servic
         throw std::invalid_argument("Can't resolve host/service to listen");
     }
     const boost::asio::ip::tcp::endpoint &ep = *endpoint_iterator;
-    listen(ep,n);
+    start_listen(ep,num_threads);
 }
 
 template <class endpoint>
 void server<endpoint>::start_accept() {
     boost::lock_guard<boost::recursive_mutex> lock(m_endpoint.m_lock);
+    
+    if (!m_acceptor.is_open()) {
+        m_endpoint.m_alog->at(log::alevel::ENDPOINT) 
+            << "Accept loop is stopping because acceptor was closed." 
+            << log::endl;
+        return;
+    }
     
     connection_ptr con = m_endpoint.create_connection();
     
@@ -313,7 +383,7 @@ void server<endpoint>::start_accept() {
             << log::endl;
         return;
     }
-        
+    
     m_acceptor.async_accept(
         con->get_raw_socket(),
         boost::bind(
@@ -565,6 +635,21 @@ void server<endpoint>::connection<connection_type>::handle_read_request(
             }
             
             m_connection.m_processor->validate_handshake(m_request);
+            
+            // Extract subprotocols
+            std::string subprotocols = m_request.header("Sec-WebSocket-Protocol");
+            if(subprotocols.length() > 0) {
+                boost::char_separator<char> sep(",");
+                boost::tokenizer< boost::char_separator<char> > tokens(subprotocols, sep);
+                for(boost::tokenizer< boost::char_separator<char> >::iterator it = tokens.begin(); it != tokens.end(); ++it){
+                    std::string proto = *it;
+                    boost::trim(proto);
+                    if (proto.length() > 0){
+                        m_requested_subprotocols.push_back(proto);
+                    }
+                }
+            }
+            
             m_origin = m_connection.m_processor->get_origin(m_request);
             m_uri = m_connection.m_processor->get_uri(m_request);
             
