@@ -19,14 +19,16 @@
 #include "TomahawkSip.h"
 
 #include "../TomahawkAccount.h"
-
-#include <network/Servent.h>
 #include "WebSocketWrapper.h"
-#include <sip/PeerInfo.h>
+
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
 #include <network/ControlConnection.h>
+#include <network/Servent.h>
+#include <sip/PeerInfo.h>
 #include <utils/Logger.h>
+
+#include <QUuid>
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
@@ -143,7 +145,6 @@ TomahawkSipPlugin::makeWsConnection()
     connect( m_ws.data(), SIGNAL( message( QString ) ), this, SLOT( onWsMessage( QString ) ) );
     m_ws.data()->start();
 
-    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
 }
 
 bool
@@ -176,10 +177,23 @@ TomahawkSipPlugin::onWsOpened()
     if ( m_token.isEmpty() || !m_account->credentials().contains( "username" ) )
     {
         tLog() << Q_FUNC_INFO << "access token or username is empty, aborting";
+        disconnectPlugin();
         return;
     }
 
+    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
     m_sipState = AcquiringVersion;
+
+    m_uuid = QUuid::createUuid().toString();
+    QCA::SecureArray sa( m_uuid.toLatin1() );
+    QCA::SecureArray result = m_publicKey->encrypt( sa, QCA::EME_PKCS1_OAEP );
+
+    tLog() << Q_FUNC_INFO << "uuid:" << m_uuid << ", size of uuid:" << m_uuid.size() << ", size of sa:" << sa.size() << ", size of result:" << result.size();
+
+    QVariantMap nonceVerMap;
+    nonceVerMap[ "version" ] = VERSION;
+    nonceVerMap[ "nonce" ] = QString( result.toByteArray().toBase64() );
+    sendBytes( nonceVerMap );
 }
 
 
@@ -217,10 +231,10 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
 
     if ( m_sipState == AcquiringVersion )
     {
-        tLog() << Q_FUNC_INFO << "In acquiring version state, expecting version information";
-        if ( !retMap.contains( "version" ) )
+        tLog() << Q_FUNC_INFO << "In acquiring version state, expecting version/nonce information";
+        if ( !retMap.contains( "version" ) || !retMap.contains( "nonce" ) )
         {
-            tLog() << Q_FUNC_INFO << "Failed to acquire version information";
+            tLog() << Q_FUNC_INFO << "Failed to acquire version or nonce information";
             disconnectPlugin();
             return;
         }
@@ -229,6 +243,13 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         if ( ver == 0 || !ok )
         {
             tLog() << Q_FUNC_INFO << "Failed to acquire version information";
+            disconnectPlugin();
+            return;
+        }
+
+        if ( retMap[ "nonce" ].toString() != m_uuid )
+        {
+            tLog() << Q_FUNC_INFO << "Failed to validate nonce";
             disconnectPlugin();
             return;
         }

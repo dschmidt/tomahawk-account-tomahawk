@@ -27,6 +27,8 @@
 
 class WebSocketWrapper;
 
+const int VERSION = 1;
+
 class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
 {
     Q_OBJECT
@@ -74,6 +76,7 @@ private:
 
     QWeakPointer< WebSocketWrapper > m_ws;
     QString m_token;
+    QString m_uuid;
     SipState m_sipState;
     int m_version;
     QCA::PublicKey* m_publicKey;
