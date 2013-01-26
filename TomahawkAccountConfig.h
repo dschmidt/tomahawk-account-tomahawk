@@ -19,6 +19,8 @@
 #ifndef TOMAHAWK_ACCOUNT_CONFIG_H
 #define TOMAHAWK_ACCOUNT_CONFIG_H
 
+#include <accounts/AccountConfigWidget.h>
+
 #include <QWidget>
 #include <QVariantMap>
 
@@ -33,7 +35,7 @@ namespace Accounts {
 
 class TomahawkAccount;
 
-class TomahawkAccountConfig : public QWidget
+class TomahawkAccountConfig : public AccountConfigWidget
 {
     Q_OBJECT
 public:

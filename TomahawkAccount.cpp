@@ -92,7 +92,7 @@ TomahawkAccount::instance()
 }
 
 
-QWidget*
+AccountConfigWidget*
 TomahawkAccount::configurationWidget()
 {
     if ( m_configWidget.isNull() )

@@ -82,7 +82,7 @@ public:
     virtual Tomahawk::InfoSystem::InfoPluginPtr infoPlugin() { return Tomahawk::InfoSystem::InfoPluginPtr(); }
     SipPlugin* sipPlugin();
 
-    QWidget* configurationWidget();
+    AccountConfigWidget* configurationWidget();
     QWidget* aclWidget() { return 0; }
 
     QString username() const;

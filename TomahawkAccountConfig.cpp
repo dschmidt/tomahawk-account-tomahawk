@@ -36,7 +36,7 @@ namespace {
 }
 
 TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
-    : QWidget( 0 )
+    : AccountConfigWidget( 0 )
     , m_ui( new Ui::TomahawkAccountConfig )
     , m_account( account )
 {
