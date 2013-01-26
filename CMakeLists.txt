@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 CMAKE_POLICY(SET CMP0017 NEW)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
+
 if(NOT TOMAHAWK_LIBRARIES)
     message(STATUS "BUILDING OUTSIDE TOMAHAWK")
     find_package(Tomahawk REQUIRED)
@@ -11,6 +13,7 @@ endif()
 include( ${TOMAHAWK_USE_FILE} )
 
 find_package(OpenSSL REQUIRED)
+find_package(QCA2 REQUIRED)
 
 set(WEBSOCKETPP_MAJOR_VERSION 0)
 set(WEBSOCKETPP_MINOR_VERSION 2)
