@@ -353,7 +353,7 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
 
 
     SipInfo sipInfo;
-    sipInfo.setUniqname( dbid );
+    sipInfo.setNodeId( dbid );
     if( !host.isEmpty() && port != 0 )
     {
         sipInfo.setHost( valMap[ "host" ].toString() );
@@ -397,7 +397,7 @@ void
 TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info)
 {
     const QString dbid = receiver->data().toMap().value( "dbid" ).toString();
-    tLog() << Q_FUNC_INFO << "Send local info to " << receiver->friendlyName() << "(" << dbid << ") we are" << info.uniqname() << "with offerkey " << info.key();
+    tLog() << Q_FUNC_INFO << "Send local info to " << receiver->friendlyName() << "(" << dbid << ") we are" << info.nodeId() << "with offerkey " << info.key();
 
     QVariantMap sendMap;
     sendMap[ "command" ] = "authorize-peer";
