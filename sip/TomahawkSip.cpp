@@ -28,7 +28,9 @@
 #include <sip/PeerInfo.h>
 #include <utils/Logger.h>
 
+#include <QFile>
 #include <QUuid>
+#include <QtCrypto>
 
 TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
