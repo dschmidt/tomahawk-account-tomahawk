@@ -45,7 +45,7 @@ TomahawkAccountFactory::TomahawkAccountFactory()
 {
 #ifndef ENABLE_HEADLESS
     if ( s_icon == 0 )
-        s_icon = new QPixmap( ":/tomahawk-icon-64x64.png" );
+        s_icon = new QPixmap( ":/tomahawk-account/tomahawk-icon-64x64.png" );
 #endif
 }
 

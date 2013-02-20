@@ -42,7 +42,10 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
 
-    QFile pemFile( ":/hatchet.pem" );
+    QFile pemFile( ":/tomahawk-account/hatchet.pem" );
+    pemFile.open( QIODevice::ReadOnly );
+    tLog() << Q_FUNC_INFO << "hatchet.pem: " << pemFile.readAll();
+    pemFile.close();
     pemFile.open( QIODevice::ReadOnly );
     QCA::ConvertResult conversionResult;
     QCA::PublicKey publicKey = QCA::PublicKey::fromPEM(pemFile.readAll(), &conversionResult);
@@ -112,6 +115,12 @@ TomahawkSipPlugin::makeWsConnection()
     //Other things can request access tokens, so if we're already connected there's no need to pay attention
     if ( !m_ws.isNull() )
         return;
+
+    if ( !isValid() )
+    {
+      tLog() << Q_FUNC_INFO << "Invalid state, not continuing with connection";
+      return;
+    }
 
     QVariantList tokensCreds = m_account->credentials()[ "accesstokens" ].toList();
     //FIXME: Don't blindly pick the first one that matches?

@@ -20,7 +20,7 @@
       <string/>
      </property>
      <property name="pixmap">
-      <pixmap resource="resources.qrc">:/tomahawk-icon-128x128.png</pixmap>
+       <pixmap resource="resources.qrc">:/tomahawk-account/tomahawk-icon-128x128.png</pixmap>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
