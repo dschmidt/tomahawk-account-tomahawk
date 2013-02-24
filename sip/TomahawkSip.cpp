@@ -42,9 +42,9 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
 
-    QFile pemFile( ":/tomahawk-account/hatchet.pem" );
+    QFile pemFile( ":/tomahawk-account/dreamcatcher.pem" );
     pemFile.open( QIODevice::ReadOnly );
-    tLog() << Q_FUNC_INFO << "hatchet.pem: " << pemFile.readAll();
+    tLog() << Q_FUNC_INFO << "dreamcatcher.pem: " << pemFile.readAll();
     pemFile.close();
     pemFile.open( QIODevice::ReadOnly );
     QCA::ConvertResult conversionResult;
@@ -147,7 +147,7 @@ TomahawkSipPlugin::makeWsConnection()
         return;
     }
     else
-        tLog() << Q_FUNC_INFO << "Connecting to Hatchet endpoint at: " << url;
+        tLog() << Q_FUNC_INFO << "Connecting to Dreamcatcher endpoint at: " << url;
 
     m_ws = QWeakPointer< WebSocketWrapper >( new WebSocketWrapper( url ) );
     connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );

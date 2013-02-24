@@ -2,6 +2,6 @@
     <qresource prefix="/tomahawk-account">
         <file>tomahawk-icon-64x64.png</file>
         <file>tomahawk-icon-128x128.png</file>
-        <file>hatchet.pem</file>
+        <file>dreamcatcher.pem</file>
     </qresource>
 </RCC>
