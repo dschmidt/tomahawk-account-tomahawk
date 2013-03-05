@@ -339,23 +339,19 @@ TomahawkSipPlugin::dbSyncTriggered()
     if ( m_sipState != Connected )
         return;
 
-    QVariantMap commandMap, sourceMap;
-    commandMap[ "command" ] = "latestrevisions";
+    if ( !SourceList::instance() || SourceList::instance()->getLocal().isNull() )
+        return;
 
-    QList< Tomahawk::source_ptr > sources = SourceList::instance()->sources();
-    foreach ( const Tomahawk::source_ptr& src, sources )
-    {
-        if ( src->lastCmdGuid().isEmpty() )
-            continue;
-        QVariantMap props;
-        props[ "name" ] = src->friendlyName();
-        props[ "friendlyname" ] = src->dbFriendlyName();
-        props[ "lastrevision" ] = src->lastCmdGuid();
-        sourceMap[ src->nodeId() ] = props;
-    }
-    commandMap[ "sources" ] = sourceMap;
+    QVariantMap sourceMap;
+    sourceMap[ "command" ] = "synctrigger";
+    const Tomahawk::source_ptr src = SourceList::instance()->getLocal();
+    sourceMap[ "name" ] = src->friendlyName();
+    sourceMap[ "alias" ] = QHostInfo::localHostName();
+    sourceMap[ "friendlyname" ] = src->dbFriendlyName();
+    if ( !src->lastCmdGuid().isEmpty() )
+        sourceMap[ "lastrevision" ] = src->lastCmdGuid();
 
-    if ( !sendBytes( commandMap ) )
+    if ( !sendBytes( sourceMap ) )
     {
         tLog() << Q_FUNC_INFO << "Failed sending message";
         return;
