@@ -27,6 +27,7 @@
 #include <network/Servent.h>
 #include <sip/PeerInfo.h>
 #include <utils/Logger.h>
+#include <SourceList.h>
 
 #include <QFile>
 #include <QUuid>
@@ -41,6 +42,7 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     tLog() << Q_FUNC_INFO;
 
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
+    connect( Servent::instance(), SIGNAL( dbSyncTriggered() ), this, SLOT( dbSyncTriggered() ));
 
     QFile pemFile( ":/tomahawk-account/dreamcatcher.pem" );
     pemFile.open( QIODevice::ReadOnly );
@@ -128,9 +130,10 @@ TomahawkSipPlugin::makeWsConnection()
     foreach ( QVariant credObj, tokensCreds )
     {
         QVariantMap creds = credObj.toMap();
-        if ( creds.contains( "type" ) && creds[ "type" ].toString() == "sync" )
+        if ( creds.contains( "type" ) && creds[ "type" ].toString() == "dreamcatcher" )
         {
             connectVals = creds;
+            m_userid = creds["userid"].toString();
             m_token = creds["token"].toString();
             break;
         }
@@ -269,10 +272,12 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
 
         QVariantMap registerMap;
         registerMap[ "command" ] = "register";
+        registerMap[ "userid" ] = m_userid;
         registerMap[ "host" ] = Servent::instance()->externalAddress();
         registerMap[ "port" ] = Servent::instance()->externalPort();
+        registerMap[ "token" ] = m_token;
         registerMap[ "dbid" ] = Database::instance()->impl()->dbid();
-        registerMap[ "accesstoken" ] = m_token;
+        registerMap[ "alias" ] = QHostInfo::localHostName();
 
         if ( !sendBytes( registerMap ) )
         {
@@ -292,6 +297,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
             tLog() << Q_FUNC_INFO << "Registered successfully";
             m_sipState = Connected;
             tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
+            QTimer::singleShot(0, this, SLOT( dbSyncTriggered() ) );
             return;
         }
         else
@@ -324,6 +330,36 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         newPeer( retMap );
     else if ( command == "peer-authorization" )
         peerAuthorization( retMap );
+}
+
+
+void
+TomahawkSipPlugin::dbSyncTriggered()
+{
+    if ( m_sipState != Connected )
+        return;
+
+    QVariantMap commandMap, sourceMap;
+    commandMap[ "command" ] = "latestrevisions";
+
+    QList< Tomahawk::source_ptr > sources = SourceList::instance()->sources();
+    foreach ( const Tomahawk::source_ptr& src, sources )
+    {
+        if ( src->lastCmdGuid().isEmpty() )
+            continue;
+        QVariantMap props;
+        props[ "name" ] = src->friendlyName();
+        props[ "friendlyname" ] = src->dbFriendlyName();
+        props[ "lastrevision" ] = src->lastCmdGuid();
+        sourceMap[ src->nodeId() ] = props;
+    }
+    commandMap[ "sources" ] = sourceMap;
+
+    if ( !sendBytes( commandMap ) )
+    {
+        tLog() << Q_FUNC_INFO << "Failed sending message";
+        return;
+    }
 }
 
 

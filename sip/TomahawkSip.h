@@ -61,6 +61,7 @@ signals:
     void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
 
 private slots:
+    void dbSyncTriggered();
     void makeWsConnection();
     void onWsOpened();
     void onWsFailed( const QString &msg );
@@ -76,6 +77,7 @@ private:
 
     QWeakPointer< WebSocketWrapper > m_ws;
     QString m_token;
+    QString m_userid;
     QString m_uuid;
     SipState m_sipState;
     int m_version;
