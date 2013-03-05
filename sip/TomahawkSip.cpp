@@ -23,6 +23,7 @@
 
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
+#include <database/DatabaseCommand_LoadOps.h>
 #include <network/ControlConnection.h>
 #include <network/Servent.h>
 #include <sip/PeerInfo.h>
@@ -162,7 +163,7 @@ TomahawkSipPlugin::makeWsConnection()
 }
 
 bool
-TomahawkSipPlugin::sendBytes( QVariantMap jsonMap )
+TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
 {
     tLog() << Q_FUNC_INFO;
     if ( m_sipState == Closed )
@@ -330,6 +331,8 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         newPeer( retMap );
     else if ( command == "peer-authorization" )
         peerAuthorization( retMap );
+    else if ( command == "synclastseen" )
+        sendOplog( retMap );
 }
 
 
@@ -360,7 +363,7 @@ TomahawkSipPlugin::dbSyncTriggered()
 
 
 bool
-TomahawkSipPlugin::checkKeys( QStringList keys, QVariantMap map )
+TomahawkSipPlugin::checkKeys( QStringList keys, const QVariantMap& map ) const
 {
     foreach ( QString key, keys )
     {
@@ -375,7 +378,7 @@ TomahawkSipPlugin::checkKeys( QStringList keys, QVariantMap map )
 
 
 void
-TomahawkSipPlugin::newPeer( QVariantMap valMap )
+TomahawkSipPlugin::newPeer( const QVariantMap& valMap )
 {
     const QString username = valMap[ "username" ].toString();
     const QString dbid = valMap[ "dbid" ].toString();
@@ -414,7 +417,7 @@ TomahawkSipPlugin::newPeer( QVariantMap valMap )
 
 
 void
-TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
+TomahawkSipPlugin::peerAuthorization( const QVariantMap& valMap )
 {
     tLog() << Q_FUNC_INFO << "dbid:" << valMap[ "dbid" ].toString() << "offerkey" << valMap[ "offerkey" ].toString();
 
@@ -437,6 +440,47 @@ TomahawkSipPlugin::peerAuthorization( QVariantMap valMap )
 
 
 void
+TomahawkSipPlugin::sendOplog( const QVariantMap& valMap ) const
+{
+    tLog() << Q_FUNC_INFO;
+    DatabaseCommand_loadOps* cmd = new DatabaseCommand_loadOps( SourceList::instance()->getLocal(), valMap[ "lastrevision" ].toString() );
+    connect( cmd, SIGNAL( done( QString, QString, QList< dbop_ptr > ) ), SLOT( oplogFetched( QString, QString, QList< dbop_ptr > ) ) );
+}
+
+
+void
+TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const
+{
+    tLog() << Q_FUNC_INFO;
+    QVariantMap commandMap;
+    commandMap[ "command" ] = "oplog";
+    commandMap[ "lastrevision" ] = sinceguid;
+    QVariantList revisions;
+    foreach( const dbop_ptr op, ops )
+    {
+        QVariantMap revMap;
+        revMap[ "revision" ] = op->guid;
+        revMap[ "command" ] = op->command;
+        revMap[ "payload" ] = op->payload;
+        revisions << revMap;
+    }
+    commandMap[ "revisions" ] = revisions;
+
+    if ( !sendBytes( commandMap ) )
+    {
+        tLog() << Q_FUNC_INFO << "Failed sending message, attempting to send a blank message to clear sync state";
+        QVariantMap rescueMap;
+        rescueMap[ "command" ] = "oplog";
+        if ( !sendBytes( rescueMap ) )
+        {
+            tLog() << Q_FUNC_INFO << "Failed to send rescue map; state may be out-of-sync with server";
+            //FIXME: Do we want to disconnect and reconnect at this point to try to get sending working and clear the server state?
+        }
+    }
+}
+
+
+void
 TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info)
 {
     const QString dbid = receiver->data().toMap().value( "dbid" ).toString();
@@ -449,13 +493,7 @@ TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const Sip
 
 
     if ( !sendBytes( sendMap ) )
-    {
         tLog() << Q_FUNC_INFO << "Failed sending message";
-        return;
-    }
-
-
-
 }
 
 Tomahawk::Accounts::TomahawkAccount*

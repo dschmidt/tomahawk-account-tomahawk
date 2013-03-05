@@ -20,6 +20,7 @@
 #define TOMAHAWK_SIP_H
 
 #include "accounts/AccountDllMacro.h"
+#include "libtomahawk/database/Op.h"
 #include "sip/SipPlugin.h"
 #include "../TomahawkAccount.h"
 
@@ -69,10 +70,12 @@ private slots:
     void onWsMessage( const QString &msg );
 
 private:
-    bool sendBytes( QVariantMap jsonMap );
-    bool checkKeys( QStringList keys, QVariantMap map );
-    void newPeer( QVariantMap valMap );
-    void peerAuthorization( QVariantMap valMap );
+    bool sendBytes( const QVariantMap& jsonMap ) const;
+    bool checkKeys( QStringList keys, const QVariantMap& map ) const;
+    void newPeer( const QVariantMap& valMap );
+    void peerAuthorization( const QVariantMap& valMap );
+    void sendOplog( const QVariantMap& valMap ) const;
+    void oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const;
     Tomahawk::Accounts::TomahawkAccount* tomahawkAccount() const;
 
     QWeakPointer< WebSocketWrapper > m_ws;
