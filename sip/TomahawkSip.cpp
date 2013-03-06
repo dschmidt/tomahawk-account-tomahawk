@@ -180,6 +180,7 @@ TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
         return false;
     }
 
+    tLog() << Q_FUNC_INFO << "Sending bytes of size" << bytes.size();
     m_ws.data()->send( bytes );
     return true;
 }
@@ -445,6 +446,7 @@ TomahawkSipPlugin::sendOplog( const QVariantMap& valMap ) const
     tLog() << Q_FUNC_INFO;
     DatabaseCommand_loadOps* cmd = new DatabaseCommand_loadOps( SourceList::instance()->getLocal(), valMap[ "lastrevision" ].toString() );
     connect( cmd, SIGNAL( done( QString, QString, QList< dbop_ptr > ) ), SLOT( oplogFetched( QString, QString, QList< dbop_ptr > ) ) );
+    Database::instance()->enqueue( QSharedPointer< DatabaseCommand >( cmd ) );
 }
 
 
@@ -454,7 +456,7 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
     tLog() << Q_FUNC_INFO;
     QVariantMap commandMap;
     commandMap[ "command" ] = "oplog";
-    commandMap[ "lastrevision" ] = sinceguid;
+    commandMap[ "startingrevision" ] = sinceguid;
     QVariantList revisions;
     foreach( const dbop_ptr op, ops )
     {

@@ -68,6 +68,7 @@ private slots:
     void onWsFailed( const QString &msg );
     void onWsClosed( const QString &msg );
     void onWsMessage( const QString &msg );
+    void oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const;
 
 private:
     bool sendBytes( const QVariantMap& jsonMap ) const;
@@ -75,7 +76,6 @@ private:
     void newPeer( const QVariantMap& valMap );
     void peerAuthorization( const QVariantMap& valMap );
     void sendOplog( const QVariantMap& valMap ) const;
-    void oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const;
     Tomahawk::Accounts::TomahawkAccount* tomahawkAccount() const;
 
     QWeakPointer< WebSocketWrapper > m_ws;
