@@ -352,8 +352,6 @@ TomahawkSipPlugin::dbSyncTriggered()
     sourceMap[ "name" ] = src->friendlyName();
     sourceMap[ "alias" ] = QHostInfo::localHostName();
     sourceMap[ "friendlyname" ] = src->dbFriendlyName();
-    if ( !src->lastCmdGuid().isEmpty() )
-        sourceMap[ "lastrevision" ] = src->lastCmdGuid();
 
     if ( !sendBytes( sourceMap ) )
     {
