@@ -458,6 +458,8 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
     QVariantList revisions;
     foreach( const dbop_ptr op, ops )
     {
+        if ( op->singleton )
+            continue;
         QVariantMap revMap;
         revMap[ "revision" ] = op->guid;
         revMap[ "command" ] = op->command;
