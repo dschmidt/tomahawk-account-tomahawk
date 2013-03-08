@@ -463,8 +463,16 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
         QVariantMap revMap;
         revMap[ "revision" ] = op->guid;
         revMap[ "command" ] = op->command;
-        revMap[ "payload" ] = op->payload;
-        revMap[ "compressed" ] = op->compressed ? true : false;
+        if ( op->compressed )
+        {
+            revMap[ "compressed" ] = true;
+            revMap[ "payload" ] = op->payload.toBase64();
+        }
+        else
+        {
+            revMap[ "compressed" ] = false;
+            revMap[ "payload" ] = op->payload;
+        }
         revisions << revMap;
     }
     commandMap[ "revisions" ] = revisions;
