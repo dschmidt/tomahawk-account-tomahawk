@@ -452,7 +452,7 @@ void
 TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const
 {
     tLog() << Q_FUNC_INFO;
-    const int byteMax = 2^17;
+    const int byteMax = 2^25;
     int currBytes = 0;
     QVariantMap commandMap;
     commandMap[ "command" ] = "oplog";
