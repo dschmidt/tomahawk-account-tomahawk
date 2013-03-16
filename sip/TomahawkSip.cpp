@@ -459,6 +459,7 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
     commandMap[ "startingrevision" ] = sinceguid;
     currBytes += 60; //baseline for quotes, keys, commas, colons, etc.
     QVariantList revisions;
+    tLog() << Q_FUNC_INFO << "Found" << ops.size() << "ops";
     foreach( const dbop_ptr op, ops )
     {
         if ( op->singleton )
@@ -483,11 +484,13 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
             revMap[ "payload" ] = op->payload;
             currBytes += op->payload.length();
         }
+        tLog() << Q_FUNC_INFO << "After entry, currBytes is" << currBytes;
         if ( currBytes >= byteMax - 1000 ) // tack on an extra 1k for safety
             break;
         else
           revisions << revMap;
     }
+    tLog() << Q_FUNC_INFO << "Sending" << revisions.size() << "revisions";
     commandMap[ "revisions" ] = revisions;
 
     if ( !sendBytes( commandMap ) )
