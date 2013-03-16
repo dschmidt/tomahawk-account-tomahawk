@@ -452,28 +452,41 @@ void
 TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const
 {
     tLog() << Q_FUNC_INFO;
+    const int byteMax = 2^17;
+    int currBytes = 0;
     QVariantMap commandMap;
     commandMap[ "command" ] = "oplog";
     commandMap[ "startingrevision" ] = sinceguid;
+    currBytes += 60; //baseline for quotes, keys, commas, colons, etc.
     QVariantList revisions;
     foreach( const dbop_ptr op, ops )
     {
         if ( op->singleton )
             continue;
+        currBytes += 70; //baseline for quotes, keys, commas, colons, etc.
         QVariantMap revMap;
         revMap[ "revision" ] = op->guid;
+        currBytes += op->guid.length();
         revMap[ "command" ] = op->command;
+        currBytes += op->command.length();
+        currBytes += 5; //true or false
         if ( op->compressed )
         {
             revMap[ "compressed" ] = true;
+            QByteArray b64 = op->payload.toBase64();
             revMap[ "payload" ] = op->payload.toBase64();
+            currBytes += b64.length();
         }
         else
         {
             revMap[ "compressed" ] = false;
             revMap[ "payload" ] = op->payload;
+            currBytes += op->payload.length();
         }
-        revisions << revMap;
+        if ( currBytes >= byteMax - 1000 ) // tack on an extra 1k for safety
+            break;
+        else
+          revisions << revMap;
     }
     commandMap[ "revisions" ] = revisions;
 
