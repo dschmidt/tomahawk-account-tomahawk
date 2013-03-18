@@ -484,7 +484,6 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
             revMap[ "payload" ] = op->payload;
             currBytes += op->payload.length();
         }
-        tLog() << Q_FUNC_INFO << "After entry, currBytes is" << currBytes;
         if ( currBytes >= byteMax - 1000000 ) // tack on an extra 1M for safety as it seems qjson puts in spaces
             break;
         else
