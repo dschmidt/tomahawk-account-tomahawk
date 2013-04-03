@@ -20,7 +20,7 @@
 #define TOMAHAWK_SIP_H
 
 #include "accounts/AccountDllMacro.h"
-#include "libtomahawk/database/Op.h"
+#include "database/Op.h"
 #include "sip/SipPlugin.h"
 #include "../TomahawkAccount.h"
 
