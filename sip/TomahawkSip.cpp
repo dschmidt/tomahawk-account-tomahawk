@@ -391,6 +391,7 @@ TomahawkSipPlugin::newPeer( const QVariantMap& valMap )
         return;
 
     Tomahawk::peerinfo_ptr peerInfo = Tomahawk::PeerInfo::get( this, dbid, Tomahawk::PeerInfo::AutoCreate );
+    peerInfo->setContactId( username );
     peerInfo->setFriendlyName( username );
     QVariantMap data;
     data.insert( "dbid", QVariant::fromValue< QString >( dbid ) );
@@ -449,7 +450,7 @@ TomahawkSipPlugin::sendOplog( const QVariantMap& valMap ) const
 
 
 void
-TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const
+TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& /* lastguid */, const QList< dbop_ptr > ops ) const
 {
     tLog() << Q_FUNC_INFO;
     const uint_fast32_t byteMax = 1 << 25;
@@ -484,7 +485,7 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& lastgu
             revMap[ "payload" ] = op->payload;
             currBytes += op->payload.length();
         }
-        if ( currBytes >= byteMax - 1000000 ) // tack on an extra 1M for safety as it seems qjson puts in spaces
+        if ( currBytes >= (int)(byteMax - 1000000) ) // tack on an extra 1M for safety as it seems qjson puts in spaces
             break;
         else
           revisions << revMap;
