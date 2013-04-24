@@ -463,12 +463,12 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& /* las
     tLog() << Q_FUNC_INFO << "Found" << ops.size() << "ops";
     foreach( const dbop_ptr op, ops )
     {
-        if ( op->singleton )
-            continue;
-        currBytes += 70; //baseline for quotes, keys, commas, colons, etc.
+        currBytes += 80; //baseline for quotes, keys, commas, colons, etc.
         QVariantMap revMap;
         revMap[ "revision" ] = op->guid;
         currBytes += op->guid.length();
+        revMap[ "singleton" ] = op->singleton;
+        currBytes += 5; //true or false
         revMap[ "command" ] = op->command;
         currBytes += op->command.length();
         currBytes += 5; //true or false
