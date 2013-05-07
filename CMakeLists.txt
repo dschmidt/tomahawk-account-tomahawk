@@ -15,22 +15,11 @@ include( ${TOMAHAWK_USE_FILE} )
 find_package(OpenSSL REQUIRED)
 find_package(QCA2 REQUIRED)
 
-set(WEBSOCKETPP_MAJOR_VERSION 0)
-set(WEBSOCKETPP_MINOR_VERSION 2)
-set(WEBSOCKETPP_PATCH_VERSION 0)
-set(WEBSOCKETPP_VERSION "${WEBSOCKETPP_MAJOR_VERSION}.${WEBSOCKETPP_MINOR_VERSION}.${WEBSOCKETPP_PATCH_VERSION}" )
-set(WEBSOCKETPP_VERSION_SONAME "${WEBSOCKETPP_MAJOR_VERSION}.${WEBSOCKETPP_MINOR_VERSION}")
-set(WEBSOCKETPP_LIBRARY tomahawk_websocketpp)
-set(WEBSOCKETPP_LIBRARIES ${WEBSOCKETPP_LIBRARY})
-
 find_package(Boost COMPONENTS regex thread filesystem random system date_time REQUIRED)
 
 if(${Boost_VERSION} LESS 105300)
     add_definitions(-D BOOST_NO_LOCK_GUARD)
 endif()
-
-set( WEBSOCKETPP_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/websocketpp/src/include )
-add_subdirectory( ${CMAKE_CURRENT_LIST_DIR}/thirdparty/websocketpp )
 
 include_directories(
     ${WEBSOCKETPP_INCLUDE_DIR}
@@ -50,7 +39,6 @@ tomahawk_add_plugin(tomahawk
         TomahawkAccountConfig.ui
     LINK_LIBRARIES
         ${TOMAHAWK_LIBRARIES}
-        ${WEBSOCKETPP_LIBRARIES}
         ${QCA2_LIBRARIES}
 )
 
