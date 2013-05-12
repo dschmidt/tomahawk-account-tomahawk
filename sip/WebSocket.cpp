@@ -144,7 +144,7 @@ WebSocket::WebSocket( const QString& url )
     m_client = std::unique_ptr< hatchet_client >( new hatchet_client() );
     m_client->register_ostream( &m_outputStream );
 
-    m_ioTimer->setSingleShot( false );
+    m_ioTimer->setSingleShot( true );
     m_ioTimer->setInterval( 30 );
     QObject::connect( m_ioTimer, SIGNAL( timeout() ), SLOT( ioTimeout() ) );
 }
@@ -210,6 +210,7 @@ WebSocket::connectWs()
     QObject::connect( m_socket, SIGNAL( stateChanged( QAbstractSocket::SocketState ) ), SLOT( socketStateChanged( QAbstractSocket::SocketState ) ) );
     QObject::connect( m_socket, SIGNAL( sslErrors( const QList< QSslError >& ) ), SLOT( sslErrors( const QList< QSslError >& ) ) );
     QObject::connect( m_socket, SIGNAL( encrypted() ), SLOT( encrypted() ) );
+    QObject::connect( m_socket, SIGNAL( readyRead() ), SLOT( socketReadyRead() ) );
     m_socket->connectToHostEncrypted( m_url.host(), m_url.port() );
 }
 
@@ -291,25 +292,73 @@ WebSocket::encrypted()
         return;
     }
     m_client->connect( m_connection );
-    m_ioTimer->start();
     emit connected();
+    m_ioTimer->start();
 }
 
 
 void
 WebSocket::ioTimeout()
 {
-    if ( !m_socket ||
-         !m_socket->isEncrypted() ||
-         !m_connection
-       )
+    if ( !m_connection )
+        return;
+
+    if ( m_wsBufStream.fail() )
     {
-        m_ioTimer->stop();
+        tLog() << Q_FUNC_INFO << "Internal buffer has failed. Something is wrong; disconnecting";
+        QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
         return;
     }
 
+    if ( std::streamsize avail = m_wsBufStream.rdbuf()->in_avail() )
+    {
+        if ( avail == -1 )
+        {
+            // Oops, something is wrong
+            tLog() << Q_FUNC_INFO << "Available bytes was -1";
+            return;
+        }
+        m_wsBufStream >> *m_connection;
+    }
 
+    m_ioTimer->start();
 }
+
+
+void
+WebSocket::socketReadyRead()
+{
+    if ( !m_socket || !m_socket->isEncrypted() )
+        return;
+
+    if ( !m_socket->isValid() )
+    {
+        tLog() << Q_FUNC_INFO << "Socket appears to no longer be valid. Something is wrong; disconnecting";
+        QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
+        return;
+    }
+
+    if ( m_wsBufStream.fail() )
+    {
+        tLog() << Q_FUNC_INFO << "Internal buffer has failed. Something is wrong; disconnecting";
+        QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
+        return;
+    }
+
+    if ( qint64 bytes = m_socket->bytesAvailable() )
+    {
+        std::vector< char > buf(bytes);
+        qint64 readBytes = m_socket->read( buf.data(), bytes );
+        if ( readBytes == -1 )
+        {
+            tLog() << Q_FUNC_INFO << "Error occurred during socket read. Something is wrong; disconnecting";
+            QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
+            return;
+        }
+        m_wsBufStream.write( buf.data(), readBytes );
+    }
+}
+
 
 
 /*

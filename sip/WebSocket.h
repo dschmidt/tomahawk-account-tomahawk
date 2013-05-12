@@ -64,12 +64,14 @@ private slots:
     void encrypted();
     void reconnectWs();
     void ioTimeout();
+    void socketReadyRead();
 
 private:
     Q_DISABLE_COPY( WebSocket )
 
     QUrl m_url;
     std::ostringstream m_outputStream;
+    std::stringstream m_wsBufStream;
     std::unique_ptr< hatchet_client > m_client;
     hatchet_client::connection_ptr m_connection;
     QPointer< QSslSocket > m_socket;

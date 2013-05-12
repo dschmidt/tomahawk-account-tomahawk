@@ -37,7 +37,7 @@ else()
     add_definitions(-std=c++0x)
 endif()
 
-tomahawk_add_plugin(tomahawk
+tomahawk_add_plugin(hatchet
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
     SOURCES
