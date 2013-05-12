@@ -41,13 +41,13 @@ tomahawk_add_plugin(tomahawk
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
     SOURCES
-        TomahawkAccount.cpp
-        TomahawkAccountConfig.cpp
+        HatchetAccount.cpp
+        HatchetAccountConfig.cpp
         sip/WebSocket.cpp
         sip/WebSocketThreadController.cpp
-        sip/TomahawkSip.cpp
+        sip/HatchetSip.cpp
     UI
-        TomahawkAccountConfig.ui
+        HatchetAccountConfig.ui
     LINK_LIBRARIES
         ${TOMAHAWK_LIBRARIES}
         ${QCA2_LIBRARIES}

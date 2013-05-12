@@ -138,6 +138,7 @@ WebSocket::WebSocket( const QString& url )
     , m_url( url )
     , m_outputStream()
     , m_ioTimer( new QTimer( nullptr ) )
+    , m_lastSocketState( QAbstractSocket::UnconnectedState )
 {
     tLog() << Q_FUNC_INFO << "WebSocket constructing";
     m_client = std::unique_ptr< hatchet_client >( new hatchet_client() );
@@ -198,7 +199,7 @@ WebSocket::connectWs()
             return;
 
         if ( m_socket->state() == QAbstractSocket::ClosingState )
-            QMetaObject::invokeMethod( this, SLOT( connectWs() ), Qt::QueuedConnection );
+            QMetaObject::invokeMethod( this, "connectWs", Qt::QueuedConnection );
 
         return;
     }
@@ -231,25 +232,40 @@ void
 WebSocket::reconnectWs()
 {
     tLog() << Q_FUNC_INFO << "Reconnecting";
-    QMetaObject::invokeMethod( this, SLOT( disconnectWs() ), Qt::QueuedConnection );
-    QMetaObject::invokeMethod( this, SLOT( connectWs() ), Qt::QueuedConnection );
+    QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
+    QMetaObject::invokeMethod( this, "connectWs", Qt::QueuedConnection );
 }
 
 
 void
 WebSocket::socketStateChanged( QAbstractSocket::SocketState state )
 {
-    tLog() << Q_FUNC_INFO << "Socket state changed";
+    tLog() << Q_FUNC_INFO << "Socket state changed to " << state;
     switch ( state )
     {
+        case QAbstractSocket::ClosingState:
+            if ( m_lastSocketState == QAbstractSocket::ClosingState )
+            {
+                // It seems like it does not actually properly close, so force it
+                tLog() << Q_FUNC_INFO << "Got a double closing state, cleaning up and emitting disconnected";
+                m_socket->deleteLater();
+                m_lastSocketState = QAbstractSocket::UnconnectedState;
+                emit disconnected();
+                return;
+            }
+            break;
         case QAbstractSocket::UnconnectedState:
+            if ( m_lastSocketState == QAbstractSocket::UnconnectedState )
+                return;
             tLog() << Q_FUNC_INFO << "Socket now unconnected, cleaning up and emitting disconnected";
             m_socket->deleteLater();
+            m_lastSocketState = QAbstractSocket::UnconnectedState;
             emit disconnected();
-            break;
-        default:
             return;
+        default:
+            ;
     }
+    m_lastSocketState = state;
 }
 
 
@@ -267,7 +283,7 @@ WebSocket::encrypted()
 {
     tLog() << Q_FUNC_INFO << "Encrypted connection to Hatchet established";
     error_code ec;
-    m_connection = m_client->get_connection( m_url.toString().toStdString(), ec );
+    m_connection = m_client->get_connection( m_url.toString().remove( 2, 1 ).toStdString(), ec );
     if ( !m_connection )
     {
         tLog() << Q_FUNC_INFO << "Got error creating WS connection, error is: " << QString::fromStdString( ec.message() );

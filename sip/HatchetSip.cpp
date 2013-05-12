@@ -16,9 +16,9 @@
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TomahawkSip.h"
+#include "HatchetSip.h"
 
-#include "../TomahawkAccount.h"
+#include "../HatchetAccount.h"
 #include "WebSocketThreadController.h"
 //#include "WebSocket.h"
 
@@ -35,7 +35,7 @@
 #include <QUuid>
 #include <QtCrypto>
 
-TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
+HatchetSipPlugin::HatchetSipPlugin( Tomahawk::Accounts::Account *account )
     : SipPlugin( account )
     , m_sipState( Closed )
     , m_version( 0 )
@@ -62,7 +62,7 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 }
 
 
-TomahawkSipPlugin::~TomahawkSipPlugin()
+HatchetSipPlugin::~HatchetSipPlugin()
 {
     if ( m_webSocketThreadController )
     {
@@ -75,19 +75,42 @@ TomahawkSipPlugin::~TomahawkSipPlugin()
 
     m_sipState = Closed;
 
-    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
+    hatchetAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
 }
 
 
 bool
-TomahawkSipPlugin::isValid() const
+HatchetSipPlugin::isValid() const
 {
     return m_account->enabled() && m_account->isAuthenticated() && m_publicKey;
 }
 
 
 void
-TomahawkSipPlugin::connectPlugin()
+HatchetSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info)
+{
+    const QString dbid = receiver->data().toMap().value( "dbid" ).toString();
+    tLog() << Q_FUNC_INFO << "Send local info to " << receiver->friendlyName() << "(" << dbid << ") we are" << info.nodeId() << "with offerkey " << info.key();
+
+    QVariantMap sendMap;
+    sendMap[ "command" ] = "authorize-peer";
+    sendMap[ "dbid" ] = dbid;
+    sendMap[ "offerkey" ] = info.key();
+
+
+    if ( !sendBytes( sendMap ) )
+        tLog() << Q_FUNC_INFO << "Failed sending message";
+}
+
+Tomahawk::Accounts::HatchetAccount*
+HatchetSipPlugin::hatchetAccount() const
+{
+    return qobject_cast< Tomahawk::Accounts::HatchetAccount* >( m_account );
+}
+
+
+void
+HatchetSipPlugin::connectPlugin()
 {
     if ( !m_account->isAuthenticated() )
     {
@@ -95,13 +118,15 @@ TomahawkSipPlugin::connectPlugin()
         return;
     }
 
-    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connecting );
-    tomahawkAccount()->fetchAccessTokens();
+    m_webSocketThreadController = QPointer< WebSocketThreadController >( new WebSocketThreadController( this ) );
+
+    hatchetAccount()->setConnectionState( Tomahawk::Accounts::Account::Connecting );
+    hatchetAccount()->fetchAccessTokens();
 }
 
 
 void
-TomahawkSipPlugin::disconnectPlugin()
+HatchetSipPlugin::disconnectPlugin()
 {
     if ( m_webSocketThreadController )
     {
@@ -115,12 +140,15 @@ TomahawkSipPlugin::disconnectPlugin()
     m_sipState = Closed;
     m_version = 0;
 
-    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
+    hatchetAccount()->setConnectionState( Tomahawk::Accounts::Account::Disconnected );
 }
 
 
+///////////////////////////// Connection methods ////////////////////////////////////
+
+
 void
-TomahawkSipPlugin::makeWsConnection()
+HatchetSipPlugin::makeWsConnection()
 {
     //Other things can request access tokens, so if we're already connected there's no need to pay attention
 //    if ( !m_ws.isNull() )
@@ -160,35 +188,31 @@ TomahawkSipPlugin::makeWsConnection()
     else
         tLog() << Q_FUNC_INFO << "Connecting to Dreamcatcher endpoint at: " << url;
 
-    m_webSocketThreadController = QPointer< WebSocketThreadController >( new WebSocketThreadController );
     m_webSocketThreadController->setUrl( url );
-    connect( m_webSocketThreadController, SIGNAL( connected() ), this, SLOT( webSocketConnected() ) );
-    connect( m_webSocketThreadController, SIGNAL( disconnected() ), this, SLOT( webSocketDisconnected() ) );
 //    connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );
 //    connect( m_ws.data(), SIGNAL( failed( QString ) ), this, SLOT( onWsFailed( QString ) ) );
 //    connect( m_ws.data(), SIGNAL( closed( QString ) ), this, SLOT( onWsClosed( QString ) ) );
 //    connect( m_ws.data(), SIGNAL( message( QString ) ), this, SLOT( onWsMessage( QString ) ) );
     m_webSocketThreadController->start();
-
 }
 
 
 void
-TomahawkSipPlugin::webSocketConnected()
+HatchetSipPlugin::webSocketConnected()
 {
     tLog() << Q_FUNC_INFO << "WebSocket connected: ";
 }
 
 
 void
-TomahawkSipPlugin::webSocketDisconnected()
+HatchetSipPlugin::webSocketDisconnected()
 {
     tLog() << Q_FUNC_INFO << "WebSocket disconnected";
 }
 
 
 bool
-TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
+HatchetSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
 {
     tLog() << Q_FUNC_INFO;
     if ( m_sipState == Closed )
@@ -211,7 +235,7 @@ TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
 }
 
 void
-TomahawkSipPlugin::onWsOpened()
+HatchetSipPlugin::onWsOpened()
 {
     tLog() << Q_FUNC_INFO << "WebSocket opened";
 
@@ -222,7 +246,7 @@ TomahawkSipPlugin::onWsOpened()
         return;
     }
 
-    tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
+    hatchetAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
     m_sipState = AcquiringVersion;
 
     m_uuid = QUuid::createUuid().toString();
@@ -239,7 +263,7 @@ TomahawkSipPlugin::onWsOpened()
 
 
 void
-TomahawkSipPlugin::onWsFailed( const QString &msg )
+HatchetSipPlugin::onWsFailed( const QString &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket failed with message: " << msg;
     disconnectPlugin();
@@ -247,7 +271,7 @@ TomahawkSipPlugin::onWsFailed( const QString &msg )
 
 
 void
-TomahawkSipPlugin::onWsClosed( const QString &msg )
+HatchetSipPlugin::onWsClosed( const QString &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket closed with message: " << msg;
     disconnectPlugin();
@@ -255,7 +279,7 @@ TomahawkSipPlugin::onWsClosed( const QString &msg )
 
 
 void
-TomahawkSipPlugin::onWsMessage( const QString &msg )
+HatchetSipPlugin::onWsMessage( const QString &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket message: " << msg;
 
@@ -323,7 +347,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         {
             tLog() << Q_FUNC_INFO << "Registered successfully";
             m_sipState = Connected;
-            tomahawkAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
+            hatchetAccount()->setConnectionState( Tomahawk::Accounts::Account::Connected );
             QTimer::singleShot(0, this, SLOT( dbSyncTriggered() ) );
             return;
         }
@@ -358,32 +382,8 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
 }
 
 
-void
-TomahawkSipPlugin::dbSyncTriggered()
-{
-    if ( m_sipState != Connected )
-        return;
-
-    if ( !SourceList::instance() || SourceList::instance()->getLocal().isNull() )
-        return;
-
-    QVariantMap sourceMap;
-    sourceMap[ "command" ] = "synctrigger";
-    const Tomahawk::source_ptr src = SourceList::instance()->getLocal();
-    sourceMap[ "name" ] = src->friendlyName();
-    sourceMap[ "alias" ] = QHostInfo::localHostName();
-    sourceMap[ "friendlyname" ] = src->dbFriendlyName();
-
-    if ( !sendBytes( sourceMap ) )
-    {
-        tLog() << Q_FUNC_INFO << "Failed sending message";
-        return;
-    }
-}
-
-
 bool
-TomahawkSipPlugin::checkKeys( QStringList keys, const QVariantMap& map ) const
+HatchetSipPlugin::checkKeys( QStringList keys, const QVariantMap& map ) const
 {
     foreach ( QString key, keys )
     {
@@ -397,8 +397,11 @@ TomahawkSipPlugin::checkKeys( QStringList keys, const QVariantMap& map ) const
 }
 
 
+///////////////////////////// Peer handling methods ////////////////////////////////////
+
+
 void
-TomahawkSipPlugin::newPeer( const QVariantMap& valMap )
+HatchetSipPlugin::newPeer( const QVariantMap& valMap )
 {
     const QString username = valMap[ "username" ].toString();
     const QString dbid = valMap[ "dbid" ].toString();
@@ -438,7 +441,7 @@ TomahawkSipPlugin::newPeer( const QVariantMap& valMap )
 
 
 void
-TomahawkSipPlugin::peerAuthorization( const QVariantMap& valMap )
+HatchetSipPlugin::peerAuthorization( const QVariantMap& valMap )
 {
     tLog() << Q_FUNC_INFO << "dbid:" << valMap[ "dbid" ].toString() << "offerkey" << valMap[ "offerkey" ].toString();
 
@@ -460,8 +463,34 @@ TomahawkSipPlugin::peerAuthorization( const QVariantMap& valMap )
 }
 
 
+///////////////////////////// Syncing methods ////////////////////////////////////
+
 void
-TomahawkSipPlugin::sendOplog( const QVariantMap& valMap ) const
+HatchetSipPlugin::dbSyncTriggered()
+{
+    if ( m_sipState != Connected )
+        return;
+
+    if ( !SourceList::instance() || SourceList::instance()->getLocal().isNull() )
+        return;
+
+    QVariantMap sourceMap;
+    sourceMap[ "command" ] = "synctrigger";
+    const Tomahawk::source_ptr src = SourceList::instance()->getLocal();
+    sourceMap[ "name" ] = src->friendlyName();
+    sourceMap[ "alias" ] = QHostInfo::localHostName();
+    sourceMap[ "friendlyname" ] = src->dbFriendlyName();
+
+    if ( !sendBytes( sourceMap ) )
+    {
+        tLog() << Q_FUNC_INFO << "Failed sending message";
+        return;
+    }
+}
+
+
+void
+HatchetSipPlugin::sendOplog( const QVariantMap& valMap ) const
 {
     tLog() << Q_FUNC_INFO;
     DatabaseCommand_loadOps* cmd = new DatabaseCommand_loadOps( SourceList::instance()->getLocal(), valMap[ "lastrevision" ].toString() );
@@ -471,7 +500,7 @@ TomahawkSipPlugin::sendOplog( const QVariantMap& valMap ) const
 
 
 void
-TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& /* lastguid */, const QList< dbop_ptr > ops ) const
+HatchetSipPlugin::oplogFetched( const QString& sinceguid, const QString& /* lastguid */, const QList< dbop_ptr > ops ) const
 {
     tLog() << Q_FUNC_INFO;
     const uint_fast32_t byteMax = 1 << 25;
@@ -528,24 +557,3 @@ TomahawkSipPlugin::oplogFetched( const QString& sinceguid, const QString& /* las
 }
 
 
-void
-TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const SipInfo& info)
-{
-    const QString dbid = receiver->data().toMap().value( "dbid" ).toString();
-    tLog() << Q_FUNC_INFO << "Send local info to " << receiver->friendlyName() << "(" << dbid << ") we are" << info.nodeId() << "with offerkey " << info.key();
-
-    QVariantMap sendMap;
-    sendMap[ "command" ] = "authorize-peer";
-    sendMap[ "dbid" ] = dbid;
-    sendMap[ "offerkey" ] = info.key();
-
-
-    if ( !sendBytes( sendMap ) )
-        tLog() << Q_FUNC_INFO << "Failed sending message";
-}
-
-Tomahawk::Accounts::TomahawkAccount*
-TomahawkSipPlugin::tomahawkAccount() const
-{
-    return qobject_cast< Tomahawk::Accounts::TomahawkAccount* >( m_account );
-}

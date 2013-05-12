@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>TomahawkAccountConfig</class>
- <widget class="QWidget" name="TomahawkAccountConfig">
+ <class>HatchetAccountConfig</class>
+ <widget class="QWidget" name="HatchetAccountConfig">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -30,7 +30,7 @@
    <item>
     <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>Connect to your Tomahawk Online account!</string>
+      <string>Connect to your Hatchet account</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -87,7 +87,7 @@
      <item row="1" column="1">
       <widget class="QLineEdit" name="usernameEdit">
        <property name="placeholderText">
-        <string>Tomahawk username</string>
+        <string>Hatchet username</string>
        </property>
       </widget>
      </item>

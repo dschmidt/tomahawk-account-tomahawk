@@ -27,20 +27,20 @@
 class QNetworkReply;
 
 namespace Ui {
-    class TomahawkAccountConfig;
+    class HatchetAccountConfig;
 };
 
 namespace Tomahawk {
 namespace Accounts {
 
-class TomahawkAccount;
+class HatchetAccount;
 
-class TomahawkAccountConfig : public AccountConfigWidget
+class HatchetAccountConfig : public AccountConfigWidget
 {
     Q_OBJECT
 public:
-    explicit TomahawkAccountConfig( TomahawkAccount* account );
-    virtual ~TomahawkAccountConfig();
+    explicit HatchetAccountConfig( HatchetAccount* account );
+    virtual ~HatchetAccountConfig();
 
 private slots:
     void registerClicked();
@@ -55,8 +55,8 @@ private slots:
 
     void accountInfoUpdated();
 private:
-    Ui::TomahawkAccountConfig* m_ui;
-    TomahawkAccount* m_account;
+    Ui::HatchetAccountConfig* m_ui;
+    HatchetAccount* m_account;
 };
 
 }

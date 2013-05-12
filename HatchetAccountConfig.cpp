@@ -16,12 +16,12 @@
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TomahawkAccountConfig.h"
-#include "TomahawkAccount.h"
+#include "HatchetAccountConfig.h"
+#include "HatchetAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
 
-#include "ui_TomahawkAccountConfig.h"
+#include "ui_HatchetAccountConfig.h"
 
 using namespace Tomahawk;
 using namespace Accounts;
@@ -34,9 +34,9 @@ namespace {
     };
 }
 
-TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
+HatchetAccountConfig::HatchetAccountConfig( HatchetAccount* account )
     : AccountConfigWidget( 0 )
-    , m_ui( new Ui::TomahawkAccountConfig )
+    , m_ui( new Ui::HatchetAccountConfig )
     , m_account( account )
 {
     Q_ASSERT( m_account );
@@ -66,14 +66,14 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     }
 }
 
-TomahawkAccountConfig::~TomahawkAccountConfig()
+HatchetAccountConfig::~HatchetAccountConfig()
 {
 
 }
 
 
 void
-TomahawkAccountConfig::registerClicked()
+HatchetAccountConfig::registerClicked()
 {
     m_ui->registerbutton->hide();
 
@@ -86,7 +86,7 @@ TomahawkAccountConfig::registerClicked()
 
 
 void
-TomahawkAccountConfig::loginOrRegister()
+HatchetAccountConfig::loginOrRegister()
 {
     const ButtonAction action = static_cast< ButtonAction>( m_ui->loginOrRegisterButton->property( "action" ).toInt() );
 
@@ -119,7 +119,7 @@ TomahawkAccountConfig::loginOrRegister()
 
 
 void
-TomahawkAccountConfig::fieldsChanged()
+HatchetAccountConfig::fieldsChanged()
 {
     const QString username = m_ui->usernameEdit->text();
     const QString password = m_ui->passwordEdit->text();
@@ -139,7 +139,7 @@ TomahawkAccountConfig::fieldsChanged()
 
 
 void
-TomahawkAccountConfig::registerFinished( bool success, const QString& error )
+HatchetAccountConfig::registerFinished( bool success, const QString& error )
 {
     if ( success )
     {
@@ -156,7 +156,7 @@ TomahawkAccountConfig::registerFinished( bool success, const QString& error )
 
 
 void
-TomahawkAccountConfig::showLoggedIn()
+HatchetAccountConfig::showLoggedIn()
 {
     m_ui->registerbutton->hide();
     m_ui->usernameLabel->hide();
@@ -178,7 +178,7 @@ TomahawkAccountConfig::showLoggedIn()
 
 
 void
-TomahawkAccountConfig::showLoggedOut()
+HatchetAccountConfig::showLoggedOut()
 {
     m_ui->emailEdit->hide();
     m_ui->emailLabel->hide();
@@ -200,7 +200,7 @@ TomahawkAccountConfig::showLoggedOut()
 
 
 void
-TomahawkAccountConfig::accountInfoUpdated()
+HatchetAccountConfig::accountInfoUpdated()
 {
     showLoggedIn();
     return;

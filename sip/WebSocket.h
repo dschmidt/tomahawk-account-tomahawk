@@ -39,13 +39,12 @@ public:
     explicit WebSocket( const QString& url );
     virtual ~WebSocket();
 
-    void setUrl( const QString &url );
-
 signals:
     void connected();
     void disconnected();
 
 public slots:
+    void setUrl( const QString& url );
     void connectWs();
     void disconnectWs();
 
@@ -67,7 +66,7 @@ private slots:
     void ioTimeout();
 
 private:
-    Q_DISABLE_COPY(WebSocket)
+    Q_DISABLE_COPY( WebSocket )
 
     QUrl m_url;
     std::ostringstream m_outputStream;
@@ -75,6 +74,7 @@ private:
     hatchet_client::connection_ptr m_connection;
     QPointer< QSslSocket > m_socket;
     QPointer< QTimer > m_ioTimer;
+    QAbstractSocket::SocketState m_lastSocketState;
 };
 
 #endif

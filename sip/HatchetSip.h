@@ -22,7 +22,7 @@
 #include "accounts/AccountDllMacro.h"
 #include "database/Op.h"
 #include "sip/SipPlugin.h"
-#include "../TomahawkAccount.h"
+#include "../HatchetAccount.h"
 
 #include <QPointer>
 #include <QtCrypto>
@@ -31,7 +31,7 @@ class WebSocketThreadController;
 
 const int VERSION = 1;
 
-class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
+class ACCOUNTDLLEXPORT HatchetSipPlugin : public SipPlugin
 {
     Q_OBJECT
 
@@ -43,9 +43,9 @@ class ACCOUNTDLLEXPORT TomahawkSipPlugin : public SipPlugin
     };
 
 public:
-    TomahawkSipPlugin( Tomahawk::Accounts::Account *account );
+    HatchetSipPlugin( Tomahawk::Accounts::Account *account );
 
-    virtual ~TomahawkSipPlugin();
+    virtual ~HatchetSipPlugin();
 
     virtual bool isValid() const;
 
@@ -62,7 +62,9 @@ public slots:
     void webSocketDisconnected();
 
 signals:
-    void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
+    void connectWebSocket();
+    void disconnectWebSocket();
+    void authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service service, const QString& authUrl );
 
 private slots:
     void dbSyncTriggered();
@@ -79,7 +81,7 @@ private:
     void newPeer( const QVariantMap& valMap );
     void peerAuthorization( const QVariantMap& valMap );
     void sendOplog( const QVariantMap& valMap ) const;
-    Tomahawk::Accounts::TomahawkAccount* tomahawkAccount() const;
+    Tomahawk::Accounts::HatchetAccount* hatchetAccount() const;
 
     QPointer< WebSocketThreadController > m_webSocketThreadController;
     QString m_token;

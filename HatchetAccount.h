@@ -25,26 +25,26 @@
 
 class QNetworkReply;
 
-class TomahawkSipPlugin;
+class HatchetSipPlugin;
 
 namespace Tomahawk
 {
 namespace Accounts
 {
 
-class TomahawkAccountConfig;
+class HatchetAccountConfig;
 
-class ACCOUNTDLLEXPORT TomahawkAccountFactory : public AccountFactory
+class ACCOUNTDLLEXPORT HatchetAccountFactory : public AccountFactory
 {
     Q_OBJECT
     Q_INTERFACES( Tomahawk::Accounts::AccountFactory )
 public:
-    TomahawkAccountFactory();
-    virtual ~TomahawkAccountFactory();
+    HatchetAccountFactory();
+    virtual ~HatchetAccountFactory();
 
-    virtual QString factoryId() const { return "tomahawkaccount"; }
-    virtual QString prettyName() const { return "Tomahawk Online"; }
-    virtual QString description() const { return tr( "Connect to your Tomahawk Online account" ); }
+    virtual QString factoryId() const { return "hatchetaccount"; }
+    virtual QString prettyName() const { return "Hatchet"; }
+    virtual QString description() const { return tr( "Connect to your Hatchet account" ); }
     virtual bool isUnique() const { return true; }
     AccountTypes types() const { return AccountTypes( SipType ); };
 //    virtual bool allowUserCreation() const { return false; }
@@ -56,7 +56,7 @@ public:
     virtual Account* createAccount ( const QString& pluginId = QString() );
 };
 
-class ACCOUNTDLLEXPORT TomahawkAccount : public Account
+class ACCOUNTDLLEXPORT HatchetAccount : public Account
 {
     Q_OBJECT
 public:
@@ -64,10 +64,10 @@ public:
         Facebook = 0
     };
 
-    TomahawkAccount( const QString &accountId );
-    virtual ~TomahawkAccount();
+    HatchetAccount( const QString &accountId );
+    virtual ~HatchetAccount();
 
-    static TomahawkAccount* instance();
+    static HatchetAccount* instance();
 
     QPixmap icon() const;
 
@@ -101,7 +101,7 @@ private slots:
     void onPasswordLoginFinished( QNetworkReply*, const QString& username );
     void onFetchAccessTokensFinished();
 
-    void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
+    void authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service service, const QString& authUrl );
 private:
     QByteArray authToken() const;
 
@@ -111,15 +111,15 @@ private:
     QNetworkReply* buildRequest( const QString& command, const QVariantMap& params ) const;
     QVariantMap parseReply( QNetworkReply* reply, bool& ok ) const;
 
-    QWeakPointer<TomahawkAccountConfig> m_configWidget;
+    QWeakPointer<HatchetAccountConfig> m_configWidget;
 
     Account::ConnectionState m_state;
 
-    QWeakPointer< TomahawkSipPlugin > m_tomahawkSipPlugin;
+    QWeakPointer< HatchetSipPlugin > m_tomahawkSipPlugin;
     QHash< Service, QString > m_extraAuthUrls;
 
-    static TomahawkAccount* s_instance;
-    friend class TomahawkAccountConfig;
+    static HatchetAccount* s_instance;
+    friend class HatchetAccountConfig;
 };
 
 }

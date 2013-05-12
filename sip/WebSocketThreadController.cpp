@@ -18,10 +18,11 @@
 #include "WebSocketThreadController.h"
 #include "WebSocket.h"
 
-#include <QDebug>
+#include "utils/Logger.h"
 
-WebSocketThreadController::WebSocketThreadController( QObject* parent )
-    : QThread( parent )
+WebSocketThreadController::WebSocketThreadController( QObject* sip )
+    : QThread( nullptr )
+    , m_sip( sip )
 {
 }
 
@@ -42,7 +43,7 @@ WebSocketThreadController::setUrl( const QString &url )
     m_url = url;
     if ( m_webSocket )
     {
-        m_webSocket->setUrl( url );
+        QMetaObject::invokeMethod( m_webSocket, "setUrl", Qt::QueuedConnection, Q_ARG( QString, url ));
     }
 }
 
@@ -50,11 +51,16 @@ WebSocketThreadController::setUrl( const QString &url )
 void
 WebSocketThreadController::run()
 {
+    tLog() << Q_FUNC_INFO << "Starting";
     m_webSocket = QPointer< WebSocket >( new WebSocket( m_url ) );
-    if ( m_webSocket )
+    if ( m_webSocket && m_sip )
     {
-        connect( m_webSocket, SIGNAL( connected() ), parent(), SLOT( webSocketConnected() ) );
-        connect( m_webSocket, SIGNAL( disconnected() ), parent(), SLOT( webSocketDisconnected() ) );
+        tLog() << Q_FUNC_INFO << "Have a valid websocket and parent";
+        connect( m_sip, SIGNAL( connectWebSocket() ), m_webSocket, SLOT( connectWs() ), Qt::QueuedConnection );
+        connect( m_sip, SIGNAL( disconnectWebSocket() ), m_webSocket, SLOT( disconnectWs() ), Qt::QueuedConnection );
+        connect( m_webSocket, SIGNAL( connected() ), m_sip, SLOT( webSocketConnected() ), Qt::QueuedConnection );
+        connect( m_webSocket, SIGNAL( disconnected() ), m_sip, SLOT( webSocketDisconnected() ), Qt::QueuedConnection );
+        QMetaObject::invokeMethod( m_webSocket, "connectWs", Qt::QueuedConnection );
         exec();
         delete m_webSocket;
         m_webSocket = 0;

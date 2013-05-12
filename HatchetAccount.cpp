@@ -16,12 +16,12 @@
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TomahawkAccount.h"
+#include "HatchetAccount.h"
 
-#include "TomahawkAccountConfig.h"
+#include "HatchetAccountConfig.h"
 #include "utils/Closure.h"
 #include "utils/Logger.h"
-#include "sip/TomahawkSip.h"
+#include "sip/HatchetSip.h"
 #include "utils/TomahawkUtils.h"
 
 #include <QtPlugin>
@@ -37,11 +37,11 @@ using namespace Tomahawk;
 using namespace Accounts;
 
 static QPixmap* s_icon = 0;
-TomahawkAccount* TomahawkAccount::s_instance  = 0;
+HatchetAccount* HatchetAccount::s_instance  = 0;
 
 #define AUTH_SERVER "http://auth.toma.hk"
 
-TomahawkAccountFactory::TomahawkAccountFactory()
+HatchetAccountFactory::HatchetAccountFactory()
 {
 #ifndef ENABLE_HEADLESS
     if ( s_icon == 0 )
@@ -50,60 +50,60 @@ TomahawkAccountFactory::TomahawkAccountFactory()
 }
 
 
-TomahawkAccountFactory::~TomahawkAccountFactory()
+HatchetAccountFactory::~HatchetAccountFactory()
 {
 
 }
 
 
 QPixmap
-TomahawkAccountFactory::icon() const
+HatchetAccountFactory::icon() const
 {
     return *s_icon;
 }
 
 
 Account*
-TomahawkAccountFactory::createAccount( const QString& pluginId )
+HatchetAccountFactory::createAccount( const QString& pluginId )
 {
-    return new TomahawkAccount( pluginId.isEmpty() ? generateId( factoryId() ) : pluginId );
+    return new HatchetAccount( pluginId.isEmpty() ? generateId( factoryId() ) : pluginId );
 }
 
 
-// Tomahawk account
+// Hatchet account
 
-TomahawkAccount::TomahawkAccount( const QString& accountId )
+HatchetAccount::HatchetAccount( const QString& accountId )
     : Account( accountId )
 {
     s_instance = this;
 }
 
 
-TomahawkAccount::~TomahawkAccount()
+HatchetAccount::~HatchetAccount()
 {
 
 }
 
 
-TomahawkAccount*
-TomahawkAccount::instance()
+HatchetAccount*
+HatchetAccount::instance()
 {
     return s_instance;
 }
 
 
 AccountConfigWidget*
-TomahawkAccount::configurationWidget()
+HatchetAccount::configurationWidget()
 {
     if ( m_configWidget.isNull() )
-        m_configWidget = QWeakPointer<TomahawkAccountConfig>( new TomahawkAccountConfig( this ) );
+        m_configWidget = QWeakPointer<HatchetAccountConfig>( new HatchetAccountConfig( this ) );
 
     return m_configWidget.data();
 }
 
 
 void
-TomahawkAccount::authenticate()
+HatchetAccount::authenticate()
 {
     if ( connectionState() == Connected )
         return;
@@ -122,7 +122,7 @@ TomahawkAccount::authenticate()
 
 
 void
-TomahawkAccount::deauthenticate()
+HatchetAccount::deauthenticate()
 {
     if ( !m_tomahawkSipPlugin.isNull() )
         sipPlugin()->disconnectPlugin();
@@ -131,7 +131,7 @@ TomahawkAccount::deauthenticate()
 
 
 void
-TomahawkAccount::setConnectionState( Account::ConnectionState connectionState )
+HatchetAccount::setConnectionState( Account::ConnectionState connectionState )
 {
     m_state = connectionState;
 
@@ -140,21 +140,21 @@ TomahawkAccount::setConnectionState( Account::ConnectionState connectionState )
 
 
 Account::ConnectionState
-TomahawkAccount::connectionState() const
+HatchetAccount::connectionState() const
 {
     return m_state;
 }
 
 
 SipPlugin*
-TomahawkAccount::sipPlugin()
+HatchetAccount::sipPlugin()
 {
     if ( m_tomahawkSipPlugin.isNull() )
     {
         tLog() << Q_FUNC_INFO;
-        m_tomahawkSipPlugin = QWeakPointer< TomahawkSipPlugin >( new TomahawkSipPlugin( this ) );
-        connect( m_tomahawkSipPlugin.data(), SIGNAL( authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service, QString ) ),
-                 this, SLOT( authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service, QString ) ) );
+        m_tomahawkSipPlugin = QWeakPointer< HatchetSipPlugin >( new HatchetSipPlugin( this ) );
+        connect( m_tomahawkSipPlugin.data(), SIGNAL( authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service, QString ) ),
+                 this, SLOT( authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service, QString ) ) );
 
         return m_tomahawkSipPlugin.data();
     }
@@ -163,35 +163,35 @@ TomahawkAccount::sipPlugin()
 
 
 QPixmap
-TomahawkAccount::icon() const
+HatchetAccount::icon() const
 {
     return *s_icon;
 }
 
 
 bool
-TomahawkAccount::isAuthenticated() const
+HatchetAccount::isAuthenticated() const
 {
     return credentials().contains( "authtoken" );
 }
 
 
 QString
-TomahawkAccount::username() const
+HatchetAccount::username() const
 {
     return credentials().value( "username" ).toString();
 }
 
 
 QByteArray
-TomahawkAccount::authToken() const
+HatchetAccount::authToken() const
 {
     return credentials().value( "authtoken" ).toByteArray();
 }
 
 
 void
-TomahawkAccount::doRegister( const QString& username, const QString& password, const QString& email )
+HatchetAccount::doRegister( const QString& username, const QString& password, const QString& email )
 {
     if ( username.isEmpty() || password.isEmpty() || email.isEmpty() )
     {
@@ -210,7 +210,7 @@ TomahawkAccount::doRegister( const QString& username, const QString& password, c
 
 
 void
-TomahawkAccount::loginWithPassword( const QString& username, const QString& password )
+HatchetAccount::loginWithPassword( const QString& username, const QString& password )
 {
     if ( username.isEmpty() || password.isEmpty() )
     {
@@ -228,7 +228,7 @@ TomahawkAccount::loginWithPassword( const QString& username, const QString& pass
 
 
 void
-TomahawkAccount::fetchAccessTokens()
+HatchetAccount::fetchAccessTokens()
 {
     if ( username().isEmpty() || authToken().isEmpty() )
     {
@@ -247,7 +247,7 @@ TomahawkAccount::fetchAccessTokens()
 
 
 void
-TomahawkAccount::onRegisterFinished()
+HatchetAccount::onRegisterFinished()
 {
     QNetworkReply* reply = qobject_cast< QNetworkReply* >( sender() );
     Q_ASSERT( reply );
@@ -264,7 +264,7 @@ TomahawkAccount::onRegisterFinished()
 
 
 void
-TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& username )
+HatchetAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& username )
 {
     Q_ASSERT( reply );
     bool ok;
@@ -289,7 +289,7 @@ TomahawkAccount::onPasswordLoginFinished( QNetworkReply* reply, const QString& u
 
 
 void
-TomahawkAccount::onFetchAccessTokensFinished()
+HatchetAccount::onFetchAccessTokensFinished()
 {
     QNetworkReply* reply = qobject_cast< QNetworkReply* >( sender() );
     Q_ASSERT( reply );
@@ -320,21 +320,21 @@ TomahawkAccount::onFetchAccessTokensFinished()
 
 
 QString
-TomahawkAccount::authUrlForService( const Service &service ) const
+HatchetAccount::authUrlForService( const Service &service ) const
 {
     return m_extraAuthUrls.value( service, QString() );
 }
 
 
 void
-TomahawkAccount::authUrlDiscovered( Service service, const QString &authUrl )
+HatchetAccount::authUrlDiscovered( Service service, const QString &authUrl )
 {
     m_extraAuthUrls[ service ] = authUrl;
 }
 
 
 QNetworkReply*
-TomahawkAccount::buildRequest( const QString& command, const QVariantMap& params ) const
+HatchetAccount::buildRequest( const QString& command, const QVariantMap& params ) const
 {
     QJson::Serializer s;
     const QByteArray msgJson = s.serialize( params );
@@ -348,7 +348,7 @@ TomahawkAccount::buildRequest( const QString& command, const QVariantMap& params
 
 
 QVariantMap
-TomahawkAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
+HatchetAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
 {
     QVariantMap resp;
 
@@ -378,4 +378,4 @@ TomahawkAccount::parseReply( QNetworkReply* reply, bool& okRet ) const
     return resp;
 }
 
-Q_EXPORT_PLUGIN2( Tomahawk::Accounts::AccountFactory, Tomahawk::Accounts::TomahawkAccountFactory )
+Q_EXPORT_PLUGIN2( Tomahawk::Accounts::AccountFactory, Tomahawk::Accounts::HatchetAccountFactory )

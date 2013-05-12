@@ -30,7 +30,7 @@ class DLLEXPORT WebSocketThreadController : public QThread
     Q_OBJECT
 
 public:
-    explicit WebSocketThreadController( QObject* parent = 0 );
+    explicit WebSocketThreadController( QObject* sip );
     virtual ~WebSocketThreadController();
 
     void setUrl( const QString &url );
@@ -42,6 +42,7 @@ private:
     Q_DISABLE_COPY( WebSocketThreadController )
 
     QPointer< WebSocket > m_webSocket;
+    QPointer< QObject > m_sip;
     QString m_url;
 };
 
