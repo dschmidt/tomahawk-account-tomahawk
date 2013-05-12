@@ -19,7 +19,8 @@
 #include "TomahawkSip.h"
 
 #include "../TomahawkAccount.h"
-#include "WebSocketWrapper.h"
+#include "WebSocketThreadController.h"
+//#include "WebSocket.h"
 
 #include <database/Database.h>
 #include <database/DatabaseImpl.h>
@@ -45,7 +46,7 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
     connect( Servent::instance(), SIGNAL( dbSyncTriggered() ), this, SLOT( dbSyncTriggered() ));
 
-    QFile pemFile( ":/tomahawk-account/dreamcatcher.pem" );
+    QFile pemFile( ":/hatchet-account/dreamcatcher.pem" );
     pemFile.open( QIODevice::ReadOnly );
     tLog() << Q_FUNC_INFO << "dreamcatcher.pem: " << pemFile.readAll();
     pemFile.close();
@@ -63,10 +64,13 @@ TomahawkSipPlugin::TomahawkSipPlugin( Tomahawk::Accounts::Account *account )
 
 TomahawkSipPlugin::~TomahawkSipPlugin()
 {
-    if ( !m_ws.isNull() )
+    if ( m_webSocketThreadController )
     {
-        m_ws.data()->stop();
-        m_ws.clear();
+        m_webSocketThreadController->quit();
+        m_webSocketThreadController->wait( 60000 );
+
+        delete m_webSocketThreadController;
+        m_webSocketThreadController = 0;
     }
 
     m_sipState = Closed;
@@ -99,10 +103,13 @@ TomahawkSipPlugin::connectPlugin()
 void
 TomahawkSipPlugin::disconnectPlugin()
 {
-    if ( !m_ws.isNull() )
+    if ( m_webSocketThreadController )
     {
-        m_ws.data()->stop();
-        m_ws.clear();
+        m_webSocketThreadController->quit();
+        m_webSocketThreadController->wait( 60000 );
+
+        delete m_webSocketThreadController;
+        m_webSocketThreadController = 0;
     }
 
     m_sipState = Closed;
@@ -116,8 +123,8 @@ void
 TomahawkSipPlugin::makeWsConnection()
 {
     //Other things can request access tokens, so if we're already connected there's no need to pay attention
-    if ( !m_ws.isNull() )
-        return;
+//    if ( !m_ws.isNull() )
+//        return;
 
     if ( !isValid() )
     {
@@ -153,14 +160,32 @@ TomahawkSipPlugin::makeWsConnection()
     else
         tLog() << Q_FUNC_INFO << "Connecting to Dreamcatcher endpoint at: " << url;
 
-    m_ws = QWeakPointer< WebSocketWrapper >( new WebSocketWrapper( url ) );
-    connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );
-    connect( m_ws.data(), SIGNAL( failed( QString ) ), this, SLOT( onWsFailed( QString ) ) );
-    connect( m_ws.data(), SIGNAL( closed( QString ) ), this, SLOT( onWsClosed( QString ) ) );
-    connect( m_ws.data(), SIGNAL( message( QString ) ), this, SLOT( onWsMessage( QString ) ) );
-    m_ws.data()->start();
+    m_webSocketThreadController = QPointer< WebSocketThreadController >( new WebSocketThreadController );
+    m_webSocketThreadController->setUrl( url );
+    connect( m_webSocketThreadController, SIGNAL( connected() ), this, SLOT( webSocketConnected() ) );
+    connect( m_webSocketThreadController, SIGNAL( disconnected() ), this, SLOT( webSocketDisconnected() ) );
+//    connect( m_ws.data(), SIGNAL( opened() ), this, SLOT( onWsOpened() ) );
+//    connect( m_ws.data(), SIGNAL( failed( QString ) ), this, SLOT( onWsFailed( QString ) ) );
+//    connect( m_ws.data(), SIGNAL( closed( QString ) ), this, SLOT( onWsClosed( QString ) ) );
+//    connect( m_ws.data(), SIGNAL( message( QString ) ), this, SLOT( onWsMessage( QString ) ) );
+    m_webSocketThreadController->start();
 
 }
+
+
+void
+TomahawkSipPlugin::webSocketConnected()
+{
+    tLog() << Q_FUNC_INFO << "WebSocket connected: ";
+}
+
+
+void
+TomahawkSipPlugin::webSocketDisconnected()
+{
+    tLog() << Q_FUNC_INFO << "WebSocket disconnected";
+}
+
 
 bool
 TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
@@ -181,7 +206,7 @@ TomahawkSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
     }
 
     tLog() << Q_FUNC_INFO << "Sending bytes of size" << bytes.size();
-    m_ws.data()->send( bytes );
+    //m_ws.data()->send( bytes );
     return true;
 }
 
@@ -305,7 +330,7 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         else
         {
             tLog() << Q_FUNC_INFO << "Failed to register successfully";
-            m_ws.data()->stop();
+            //m_ws.data()->stop();
             return;
         }
     }
@@ -314,10 +339,6 @@ TomahawkSipPlugin::onWsMessage( const QString &msg )
         // ...erm?
         tLog() << Q_FUNC_INFO << "Got a message from a non connected socket?";
         return;
-    }
-    else if ( retMap.value( "type", QString() ).toString() == "fbauth" )
-    {
-        emit authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Facebook, retMap.value( "authurl" ).toString() );
     }
     else if ( !retMap.contains( "command" ) ||
                 !retMap[ "command" ].canConvert< QString >() )
@@ -526,5 +547,5 @@ TomahawkSipPlugin::sendSipInfo(const Tomahawk::peerinfo_ptr& receiver, const Sip
 Tomahawk::Accounts::TomahawkAccount*
 TomahawkSipPlugin::tomahawkAccount() const
 {
-	return qobject_cast< Tomahawk::Accounts::TomahawkAccount* >( m_account );
+    return qobject_cast< Tomahawk::Accounts::TomahawkAccount* >( m_account );
 }

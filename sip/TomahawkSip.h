@@ -24,9 +24,10 @@
 #include "sip/SipPlugin.h"
 #include "../TomahawkAccount.h"
 
+#include <QPointer>
 #include <QtCrypto>
 
-class WebSocketWrapper;
+class WebSocketThreadController;
 
 const int VERSION = 1;
 
@@ -57,6 +58,8 @@ public slots:
     void configurationChanged() {}
     void addContact( const QString &, const QString& ) {}
     void sendMsg( const QString&, const SipInfo& ) {}
+    void webSocketConnected();
+    void webSocketDisconnected();
 
 signals:
     void authUrlDiscovered( Tomahawk::Accounts::TomahawkAccount::Service service, const QString& authUrl );
@@ -78,7 +81,7 @@ private:
     void sendOplog( const QVariantMap& valMap ) const;
     Tomahawk::Accounts::TomahawkAccount* tomahawkAccount() const;
 
-    QWeakPointer< WebSocketWrapper > m_ws;
+    QPointer< WebSocketThreadController > m_webSocketThreadController;
     QString m_token;
     QString m_userid;
     QString m_uuid;

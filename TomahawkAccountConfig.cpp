@@ -20,7 +20,6 @@
 #include "TomahawkAccount.h"
 #include "utils/TomahawkUtils.h"
 #include "utils/Logger.h"
-#include "sip/WebSocketWrapper.h"
 
 #include "ui_TomahawkAccountConfig.h"
 
@@ -57,7 +56,7 @@ TomahawkAccountConfig::TomahawkAccountConfig( TomahawkAccount* account )
     connect( m_account, SIGNAL( registerFinished( bool, QString ) ), this, SLOT( registerFinished( bool, QString ) ) );
     connect( m_account, SIGNAL( deauthenticated() ), this, SLOT( showLoggedOut() ) );
     connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( accountInfoUpdated() ) );
-    
+
     if ( !m_account->authToken().isEmpty() )
         accountInfoUpdated();
     else

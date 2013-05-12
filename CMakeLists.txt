@@ -27,33 +27,30 @@ include_directories(
     ${QCA2_INCLUDE_DIR}
 )
 
+add_definitions (-D_WEBSOCKETPP_CPP11_STL_)
+
+if(APPLE)
+    # http://stackoverflow.com/questions/7226753/osx-lion-xcode-4-1-how-do-i-setup-a-c0x-project/7236451#7236451
+    add_definitions(-std=c++11 -stdlib=libc++ -U__STRICT_ANSI__)
+    set(PLATFORM_SPECIFIC_LINK_LIBRARIES "/usr/lib/libc++.dylib")
+else()
+    add_definitions(-std=c++0x)
+endif()
+
 tomahawk_add_plugin(tomahawk
     TYPE account
     EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
     SOURCES
         TomahawkAccount.cpp
         TomahawkAccountConfig.cpp
-        sip/WebSocketWrapper.cpp
+        sip/WebSocket.cpp
+        sip/WebSocketThreadController.cpp
         sip/TomahawkSip.cpp
     UI
         TomahawkAccountConfig.ui
     LINK_LIBRARIES
         ${TOMAHAWK_LIBRARIES}
         ${QCA2_LIBRARIES}
+        ${PLATFORM_SPECIFIC_LINK_LIBRARIES}
 )
 
-
-#add_tomahawk_plugin(facebook
-#    TYPE account
-#    EXPORT_MACRO ACCOUNTDLLEXPORT_PRO
-#    SOURCES
-#        facebook/FacebookAccount.cpp
-#        facebook/FacebookAccountConfig.cpp
-#        facebook/FacebookSip.cpp
-#        facebook/FacebookAuthDialog.cpp
-#    UI
-#        facebook/FacebookAccountConfig.ui
-#    LINK_LIBRARIES
-#        ${TOMAHAWK_LIBRARIES}
-#        tomahawk_account_tomahawk
-#)

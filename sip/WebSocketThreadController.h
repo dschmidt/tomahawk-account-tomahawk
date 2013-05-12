@@ -15,47 +15,34 @@
  *   You should have received a copy of the GNU General Public License
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef WEBSOCKET_WRAPPER_H
-#define WEBSOCKET_WRAPPER_H
+#ifndef WEBSOCKET_THREAD_CONTROLLER_H
+#define WEBSOCKET_THREAD_CONTROLLER_H
 
 #include "DllMacro.h"
 
+#include <QPointer>
 #include <QThread>
 
-/**
- * A Qt wrapper around websocket++'s boost::asio-based websockets.
- *
- * One wrapper per connection. Pass in the desired endpoint in the constructor.
- *
- *
- *
- */
-class WebSocketWrapperPrivate;
-class DLLEXPORT WebSocketWrapper : public QThread
+class WebSocket;
+
+class DLLEXPORT WebSocketThreadController : public QThread
 {
     Q_OBJECT
+
 public:
-    explicit WebSocketWrapper(const QString& url, QObject* parent = 0);
-    virtual ~WebSocketWrapper();
+    explicit WebSocketThreadController( QObject* parent = 0 );
+    virtual ~WebSocketThreadController();
 
-    void send(const QString& msg);
-    void stop();
-
-signals:
-    void message(const QString& msg);
-
-    void opened();
-    void closed(const QString& reason);
-    void failed(const QString& reason);
+    void setUrl( const QString &url );
 
 protected:
     void run();
 
 private:
-    Q_DISABLE_COPY(WebSocketWrapper)
+    Q_DISABLE_COPY( WebSocketThreadController )
 
-    QScopedPointer<WebSocketWrapperPrivate> pimpl;
-    friend class WebSocketWrapperPrivate;
+    QPointer< WebSocket > m_webSocket;
+    QString m_url;
 };
 
 #endif

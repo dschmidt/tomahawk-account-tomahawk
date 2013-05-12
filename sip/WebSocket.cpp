@@ -15,18 +15,13 @@
  *   You should have received a copy of the GNU General Public License
  *   along with Tomahawk. If not, see <http://www.gnu.org/licenses/>.
  */
-#include "WebSocketWrapper.h"
+#include "WebSocket.h"
 
-#include <QDebug>
+#include "utils/Logger.h"
 
-#include <websocketpp/sockets/tls.hpp>
-#include <websocketpp/roles/client.hpp>
-#include <websocketpp/websocketpp.hpp>
-#include <websocketpp/endpoint.hpp>
+typedef typename websocketpp::lib::error_code error_code;
 
-using websocketpp::client;
-using websocketpp::client_tls;
-
+/*
 class WebSocketWrapperPrivate
 {
 public:
@@ -137,22 +132,171 @@ private:
     WebSocketWrapperPrivate* pimpl;
     connection_ptr m_con;
 };
-
-WebSocketWrapper::WebSocketWrapper(const QString& url, QObject* parent)
-    : QThread(parent)
-    , pimpl(new WebSocketWrapperPrivate(url, this))
+*/
+WebSocket::WebSocket( const QString& url )
+    : QObject( nullptr )
+    , m_url( url )
+    , m_outputStream()
+    , m_ioTimer( new QTimer( nullptr ) )
 {
+    tLog() << Q_FUNC_INFO << "WebSocket constructing";
+    m_client = std::unique_ptr< hatchet_client >( new hatchet_client() );
+    m_client->register_ostream( &m_outputStream );
+
+    m_ioTimer->setSingleShot( false );
+    m_ioTimer->setInterval( 30 );
+    QObject::connect( m_ioTimer, SIGNAL( timeout() ), SLOT( ioTimeout() ) );
 }
 
-WebSocketWrapper::~WebSocketWrapper() {
-    // If the thread is still running, close the connection and wait for the run() function to exit
-    if (isRunning()) {
-        stop();
-        wait(10000);
+
+WebSocket::~WebSocket()
+{
+    if ( m_ioTimer )
+    {
+        m_ioTimer->stop();
+        m_ioTimer->deleteLater();
+    }
+
+    if ( m_connection )
+        m_connection.reset();
+
+    if ( m_socket )
+    {
+        if ( m_socket->state() == QAbstractSocket::ConnectedState )
+        {
+            QObject::disconnect( m_socket, SIGNAL( stateChanged( QAbstractSocket::SocketState ) ) );
+            m_socket->disconnectFromHost();
+            QObject::connect( m_socket, SIGNAL( disconnected() ), m_socket, SLOT( deleteLater() ) );
+        }
+        else
+            m_socket->deleteLater();
+    }
+
+    m_client.reset();
+}
+
+
+void
+WebSocket::setUrl( const QString &url )
+{
+    tLog() << Q_FUNC_INFO << "Setting url to " << url;
+    if ( m_url == url )
+        return;
+
+    if ( m_socket && m_socket->isEncrypted() )
+        reconnectWs();
+}
+
+
+void
+WebSocket::connectWs()
+{
+    tLog() << Q_FUNC_INFO << "Connecting";
+    if ( m_socket )
+    {
+        if ( m_socket->isEncrypted() )
+            return;
+
+        if ( m_socket->state() == QAbstractSocket::ClosingState )
+            QMetaObject::invokeMethod( this, SLOT( connectWs() ), Qt::QueuedConnection );
+
+        return;
+    }
+
+    tLog() << Q_FUNC_INFO << "Establishing new connection";
+    m_socket = QPointer< QSslSocket >( new QSslSocket( nullptr ) );
+    m_socket->addCaCertificate( QSslCertificate::fromPath( ":/hatchet-account/startcomroot.pem").first() );
+    QObject::connect( m_socket, SIGNAL( stateChanged( QAbstractSocket::SocketState ) ), SLOT( socketStateChanged( QAbstractSocket::SocketState ) ) );
+    QObject::connect( m_socket, SIGNAL( sslErrors( const QList< QSslError >& ) ), SLOT( sslErrors( const QList< QSslError >& ) ) );
+    QObject::connect( m_socket, SIGNAL( encrypted() ), SLOT( encrypted() ) );
+    m_socket->connectToHostEncrypted( m_url.host(), m_url.port() );
+}
+
+
+void
+WebSocket::disconnectWs()
+{
+    tLog() << Q_FUNC_INFO << "Disconnecting";
+    m_ioTimer->stop();
+    m_outputStream.seekp( std::ios_base::end );
+    if ( m_connection )
+    {
+        m_connection.reset();
+    }
+    m_socket->disconnectFromHost();
+}
+
+
+void
+WebSocket::reconnectWs()
+{
+    tLog() << Q_FUNC_INFO << "Reconnecting";
+    QMetaObject::invokeMethod( this, SLOT( disconnectWs() ), Qt::QueuedConnection );
+    QMetaObject::invokeMethod( this, SLOT( connectWs() ), Qt::QueuedConnection );
+}
+
+
+void
+WebSocket::socketStateChanged( QAbstractSocket::SocketState state )
+{
+    tLog() << Q_FUNC_INFO << "Socket state changed";
+    switch ( state )
+    {
+        case QAbstractSocket::UnconnectedState:
+            tLog() << Q_FUNC_INFO << "Socket now unconnected, cleaning up and emitting disconnected";
+            m_socket->deleteLater();
+            emit disconnected();
+            break;
+        default:
+            return;
     }
 }
 
 
+void
+WebSocket::sslErrors( const QList< QSslError >& errors )
+{
+    tLog() << Q_FUNC_INFO << "Encountered errors when trying to connect via SSL";
+    foreach( QSslError error, errors )
+        tLog() << Q_FUNC_INFO << "Error: " << error.errorString();
+}
+
+
+void
+WebSocket::encrypted()
+{
+    tLog() << Q_FUNC_INFO << "Encrypted connection to Hatchet established";
+    error_code ec;
+    m_connection = m_client->get_connection( m_url.toString().toStdString(), ec );
+    if ( !m_connection )
+    {
+        tLog() << Q_FUNC_INFO << "Got error creating WS connection, error is: " << QString::fromStdString( ec.message() );
+        disconnectWs();
+        return;
+    }
+    m_client->connect( m_connection );
+    m_ioTimer->start();
+    emit connected();
+}
+
+
+void
+WebSocket::ioTimeout()
+{
+    if ( !m_socket ||
+         !m_socket->isEncrypted() ||
+         !m_connection
+       )
+    {
+        m_ioTimer->stop();
+        return;
+    }
+
+
+}
+
+
+/*
 void WebSocketWrapper::run()
 {
     const bool isTls = pimpl->url.startsWith( "wss:/" );
@@ -248,3 +392,4 @@ WebSocketWrapper::stop()
         theClient->close();
     }
 }
+*/
