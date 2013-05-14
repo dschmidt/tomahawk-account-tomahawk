@@ -19,145 +19,27 @@
 
 #include "utils/Logger.h"
 
+#include <QTimer>
+
+#include <functional>
+
 typedef typename websocketpp::lib::error_code error_code;
 
-/*
-class WebSocketWrapperPrivate
-{
-public:
-    WebSocketWrapperPrivate(const QString& theUrl, WebSocketWrapper* qq) : q(qq), isTls(false), url( theUrl ) {}
-
-    void receivedMessage(const QString& msg) {
-        q->message(msg);
-    }
-
-    void onFail(const QString& reason) {
-        q->failed(reason);
-    }
-
-    void onClose(const QString& reason) {
-        q->closed(reason);
-    }
-
-    void onOpen() {
-        q->opened();
-    }
-
-    WebSocketWrapper* q;
-
-    client::handler::ptr handler;
-
-    client_tls::handler::ptr handler_tls;
-
-    bool isTls;
-    QString url;
-};
-
-template <typename endpoint_type>
-class ClientHandler : public endpoint_type::handler
-{
-public:
-    ClientHandler(WebSocketWrapperPrivate* p) : pimpl(p) {}
-    virtual ~ClientHandler() {}
-
-    typedef typename endpoint_type::handler::connection_ptr connection_ptr;
-    typedef typename endpoint_type::handler::message_ptr message_ptr;
-
-    void on_fail(connection_ptr con)
-    {
-        const QString reason = QString::fromStdString(con->get_fail_reason());
-        pimpl->onFail(reason);
-        qDebug() << "Connection Failed: " << reason;
-    }
-
-    void on_open(connection_ptr con)
-    {
-        qDebug() << "Connection Opened";
-        pimpl->onOpen();
-        m_con = con;
-    }
-
-    void on_close(connection_ptr con)
-    {
-        const QString reason = QString::fromStdString(con->get_remote_close_reason());
-        pimpl->onClose(reason);
-        qDebug() << "Connection Closed";
-        m_con = connection_ptr();
-    }
-
-    boost::shared_ptr<boost::asio::ssl::context> on_tls_init() {
-        boost::shared_ptr<boost::asio::ssl::context> context(new boost::asio::ssl::context(boost::asio::ssl::context::tlsv1));
-        context->set_options(boost::asio::ssl::context::default_workarounds);
-        return context;
-    }
-
-    void on_message(connection_ptr con, message_ptr msg)
-    {
-        const QString payload = QString::fromStdString(msg->get_payload());
-        pimpl->receivedMessage(payload);
-        qDebug() << "Got Message:" << payload;
-    }
-
-
-    void send(const QString& msg)
-    {
-        if (!m_con) {
-            qDebug() << "Tried to send on a disconnected connection! Aborting.";
-            return;
-        }
-
-        std::string payload = msg.toStdString();
-
-        m_con->send(payload);
-    }
-
-    void close()
-    {
-        if (!m_con) {
-            qDebug() << "Tried to close a disconnected connection!";
-            return;
-        }
-
-        m_con->close(websocketpp::close::status::GOING_AWAY,"");
-    }
-
-    websocketpp::session::state::value state() const {
-        if (!m_con) {
-            return websocketpp::session::state::CLOSED;
-        }
-
-        return m_con->get_state();
-    }
-private:
-    WebSocketWrapperPrivate* pimpl;
-    connection_ptr m_con;
-};
-*/
 WebSocket::WebSocket( const QString& url )
     : QObject( nullptr )
     , m_url( url )
     , m_outputStream()
-    , m_ioTimer( new QTimer( nullptr ) )
     , m_lastSocketState( QAbstractSocket::UnconnectedState )
 {
     tLog() << Q_FUNC_INFO << "WebSocket constructing";
     m_client = std::unique_ptr< hatchet_client >( new hatchet_client() );
+    m_client->set_message_handler( std::bind(&onMessage, this, std::placeholders::_1, std::placeholders::_2 ) );
     m_client->register_ostream( &m_outputStream );
-
-    m_ioTimer->setSingleShot( true );
-    m_ioTimer->setInterval( 30 );
-    QObject::connect( m_ioTimer, SIGNAL( timeout() ), SLOT( ioTimeout() ) );
 }
 
 
 WebSocket::~WebSocket()
 {
-    if ( m_ioTimer )
-    {
-        m_ioTimer->stop();
-        m_ioTimer->deleteLater();
-    }
-
     if ( m_connection )
         m_connection.reset();
 
@@ -180,7 +62,7 @@ WebSocket::~WebSocket()
 void
 WebSocket::setUrl( const QString &url )
 {
-    tLog() << Q_FUNC_INFO << "Setting url to " << url;
+    tLog() << Q_FUNC_INFO << "Setting url to" << url;
     if ( m_url == url )
         return;
 
@@ -219,12 +101,11 @@ void
 WebSocket::disconnectWs()
 {
     tLog() << Q_FUNC_INFO << "Disconnecting";
-    m_ioTimer->stop();
+    m_outputStream.seekg( std::ios_base::end );
     m_outputStream.seekp( std::ios_base::end );
     if ( m_connection )
-    {
         m_connection.reset();
-    }
+    m_queuedMessagesToSend.empty();
     m_socket->disconnectFromHost();
 }
 
@@ -241,7 +122,7 @@ WebSocket::reconnectWs()
 void
 WebSocket::socketStateChanged( QAbstractSocket::SocketState state )
 {
-    tLog() << Q_FUNC_INFO << "Socket state changed to " << state;
+    tLog() << Q_FUNC_INFO << "Socket state changed to" << state;
     switch ( state )
     {
         case QAbstractSocket::ClosingState:
@@ -276,6 +157,7 @@ WebSocket::sslErrors( const QList< QSslError >& errors )
     tLog() << Q_FUNC_INFO << "Encountered errors when trying to connect via SSL";
     foreach( QSslError error, errors )
         tLog() << Q_FUNC_INFO << "Error: " << error.errorString();
+    QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
 }
 
 
@@ -284,50 +166,70 @@ WebSocket::encrypted()
 {
     tLog() << Q_FUNC_INFO << "Encrypted connection to Hatchet established";
     error_code ec;
-    m_connection = m_client->get_connection( m_url.toString().remove( 2, 1 ).toStdString(), ec );
+    // Adjust wss:// to ws:// in the URL so it doesn't complain that the transport isn't encrypted
+    QString url = m_url.toString();
+    if ( url.startsWith( "wss") )
+        url.remove( 2, 1 );
+    m_connection = m_client->get_connection( url.toStdString(), ec );
     if ( !m_connection )
     {
-        tLog() << Q_FUNC_INFO << "Got error creating WS connection, error is: " << QString::fromStdString( ec.message() );
+        tLog() << Q_FUNC_INFO << "Got error creating WS connection, error is:" << QString::fromStdString( ec.message() );
         disconnectWs();
         return;
     }
     m_client->connect( m_connection );
+    QMetaObject::invokeMethod( this, "readOutput", Qt::QueuedConnection );
     emit connected();
-    m_ioTimer->start();
 }
 
 
 void
-WebSocket::ioTimeout()
+WebSocket::readOutput()
 {
     if ( !m_connection )
         return;
 
-    if ( m_wsBufStream.fail() )
-    {
-        tLog() << Q_FUNC_INFO << "Internal buffer has failed. Something is wrong; disconnecting";
-        QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
-        return;
-    }
+    tLog() << Q_FUNC_INFO;
 
-    if ( std::streamsize avail = m_wsBufStream.rdbuf()->in_avail() )
+    std::string outputString = m_outputStream.str();
+    if ( outputString.size() > 0 )
     {
-        if ( avail == -1 )
+        m_outputStream.str("");
+
+        tLog() << Q_FUNC_INFO << "Got string of size" << outputString.size() << "from ostream";
+        qint64 sizeWritten = m_socket->write( outputString.data(), outputString.size() );
+        tLog() << Q_FUNC_INFO << "Wrote" << sizeWritten << "bytes to the socket";
+        if ( sizeWritten == -1 )
         {
-            // Oops, something is wrong
-            tLog() << Q_FUNC_INFO << "Available bytes was -1";
+            tLog() << Q_FUNC_INFO << "Error during writing, closing connection";
+            QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
             return;
         }
-        m_wsBufStream >> *m_connection;
     }
 
-    m_ioTimer->start();
-}
+    if ( m_queuedMessagesToSend.size() )
+    {
+        if ( m_connection->get_state() == websocketpp::session::state::open )
+        {
+            foreach( QByteArray message, m_queuedMessagesToSend )
+            {
+                tLog() << Q_FUNC_INFO << "Sending queued message of size" << message.size();
+                m_connection->send( std::string( message.constData(), message.size() ), websocketpp::frame::opcode::TEXT );
+            }
 
+            m_queuedMessagesToSend.clear();
+            QMetaObject::invokeMethod( this, "readOutput", Qt::QueuedConnection );
+        }
+        else
+            QTimer::singleShot( 200, this, SLOT( readOutput() ) );
+    }
+}
 
 void
 WebSocket::socketReadyRead()
 {
+    tLog() << Q_FUNC_INFO;
+
     if ( !m_socket || !m_socket->isEncrypted() )
         return;
 
@@ -338,123 +240,52 @@ WebSocket::socketReadyRead()
         return;
     }
 
-    if ( m_wsBufStream.fail() )
-    {
-        tLog() << Q_FUNC_INFO << "Internal buffer has failed. Something is wrong; disconnecting";
-        QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
-        return;
-    }
-
     if ( qint64 bytes = m_socket->bytesAvailable() )
     {
-        std::vector< char > buf(bytes);
-        qint64 readBytes = m_socket->read( buf.data(), bytes );
-        if ( readBytes == -1 )
+        tLog() << Q_FUNC_INFO << "Bytes available:" << bytes;
+        QByteArray buf;
+        buf.resize( bytes );
+        qint64 bytesRead = m_socket->read( buf.data(), bytes );
+        tLog() << Q_FUNC_INFO << "Bytes read:" << bytesRead; // << ", content is" << websocketpp::utility::to_hex( buf.constData(), bytesRead ).data();
+        if ( bytesRead != bytes )
         {
             tLog() << Q_FUNC_INFO << "Error occurred during socket read. Something is wrong; disconnecting";
             QMetaObject::invokeMethod( this, "disconnectWs", Qt::QueuedConnection );
             return;
         }
-        m_wsBufStream.write( buf.data(), readBytes );
+        std::stringstream ss( std::string( buf.constData(), bytesRead ) );
+        ss >> *m_connection;
     }
+
+    QMetaObject::invokeMethod( this, "readOutput", Qt::QueuedConnection );
 }
 
 
-
-/*
-void WebSocketWrapper::run()
+void
+WebSocket::encodeMessage( const QByteArray &bytes )
 {
-    const bool isTls = pimpl->url.startsWith( "wss:/" );
-
-//     con->add_subprotocol("com.zaphoyd.websocketpp.chat");
-
-//     Origin not required for non-browser clients
-//     con->set_origin("http://zaphoyd.com");
-
-    try {
-        if (isTls) {
-            pimpl->isTls = true;
-            pimpl->handler_tls = client_tls::handler::ptr(new ClientHandler<client_tls>(pimpl.data()));
-
-            client_tls::connection_ptr con;
-            client_tls endpoint(pimpl->handler_tls);
-
-            endpoint.alog().set_level(websocketpp::log::alevel::ALL);
-            endpoint.elog().set_level(websocketpp::log::elevel::ALL);
-
-            con = endpoint.get_connection(pimpl->url.toStdString());
-
-            endpoint.connect(con);
-
-            con->add_request_header("User-Agent","Tomahawk/0.2.0 TomahawkAccount/0.2.0");
-            endpoint.run(false);
-        } else {
-            pimpl->isTls = false;
-            pimpl->handler = client::handler::ptr(new ClientHandler<client>(pimpl.data()));
-
-            client::connection_ptr con;
-            client endpoint(pimpl->handler);
-
-            endpoint.alog().set_level(websocketpp::log::alevel::ALL);
-            endpoint.elog().set_level(websocketpp::log::elevel::ALL);
-
-            con = endpoint.get_connection(pimpl->url.toStdString());
-
-            endpoint.connect(con);
-
-            con->add_request_header("User-Agent","Tomahawk/0.2.0 TomahawkAccount/0.2.0");
-            endpoint.run(false);
-        }
-    } catch(websocketpp::exception& e) {
-        qWarning() << "Caught exception trying to get connection to endpoint: " << pimpl->url << e.code() << e.what();
-        return;
-    } catch (const char* msg) {
-        qWarning() << "Const const char& exception:" << msg;
+    tLog() << Q_FUNC_INFO << "Encoding message"; //, message is" << bytes.constData();
+    if ( !m_connection )
+    {
+        tLog() << Q_FUNC_INFO << "Asked to send message but do not have a valid connection!";
         return;
     }
-}
 
-
-void WebSocketWrapper::send(const QString& msg)
-{
-    Q_ASSERT(!pimpl.isNull());
-    if (pimpl.isNull())
-        return;
-
-    // NOTE connection::send() is threadsafe
-    if (pimpl->isTls) {
-        ClientHandler<client_tls>* client = dynamic_cast<ClientHandler<client_tls>*>(pimpl->handler_tls.get());
-        if (!client)
-            return;
-
-        client->send(msg);
-    } else {
-        ClientHandler<client>* theClient = dynamic_cast<ClientHandler<client>*>(pimpl->handler.get());
-        if (!theClient)
-            return;
-        theClient->send(msg);
+    if ( m_connection->get_state() != websocketpp::session::state::open )
+    {
+        tLog() << Q_FUNC_INFO << "Connection not yet open/upgraded, queueing work to send";
+        m_queuedMessagesToSend.append( bytes );
     }
+    else
+        m_connection->send( std::string( bytes.constData() ), websocketpp::frame::opcode::TEXT );
+
+    QMetaObject::invokeMethod( this, "readOutput", Qt::QueuedConnection );
 }
 
 void
-WebSocketWrapper::stop()
+onMessage( WebSocket* ws, websocketpp::connection_hdl, hatchet_client::message_ptr msg )
 {
-    Q_ASSERT(!pimpl.isNull());
-    if (pimpl.isNull())
-        return;
-
-    // NOTE connection::close() is threadsafe
-    if (pimpl->isTls) {
-        ClientHandler<client_tls>* client = dynamic_cast<ClientHandler<client_tls>*>(pimpl->handler_tls.get());
-        if (!client)
-            return;
-
-        client->close();
-    } else {
-        ClientHandler<client>* theClient = dynamic_cast<ClientHandler<client>*>(pimpl->handler.get());
-        if (!theClient)
-            return;
-        theClient->close();
-    }
+    tLog() << Q_FUNC_INFO << "Handling message";
+    std::string payload = msg->get_payload();
+    ws->decodedMessage( QByteArray( payload.data(), payload.length() ) );
 }
-*/

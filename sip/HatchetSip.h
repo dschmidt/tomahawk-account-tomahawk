@@ -62,17 +62,17 @@ public slots:
     void webSocketDisconnected();
 
 signals:
-    void connectWebSocket();
-    void disconnectWebSocket();
-    void authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service service, const QString& authUrl );
+    void connectWebSocket() const;
+    void disconnectWebSocket() const;
+    void authUrlDiscovered( Tomahawk::Accounts::HatchetAccount::Service service, const QString& authUrl ) const;
+    void rawBytes( QByteArray bytes ) const;
 
 private slots:
     void dbSyncTriggered();
-    void makeWsConnection();
-    void onWsOpened();
+    void messageReceived( const QByteArray& msg );
+    void connectWebSocket();
     void onWsFailed( const QString &msg );
     void onWsClosed( const QString &msg );
-    void onWsMessage( const QString &msg );
     void oplogFetched( const QString& sinceguid, const QString& lastguid, const QList< dbop_ptr > ops ) const;
 
 private:

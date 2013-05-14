@@ -43,7 +43,7 @@ HatchetSipPlugin::HatchetSipPlugin( Tomahawk::Accounts::Account *account )
 {
     tLog() << Q_FUNC_INFO;
 
-    connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( makeWsConnection() ) );
+    connect( m_account, SIGNAL( accessTokensFetched() ), this, SLOT( connectWebSocket() ) );
     connect( Servent::instance(), SIGNAL( dbSyncTriggered() ), this, SLOT( dbSyncTriggered() ));
 
     QFile pemFile( ":/hatchet-account/dreamcatcher.pem" );
@@ -148,7 +148,7 @@ HatchetSipPlugin::disconnectPlugin()
 
 
 void
-HatchetSipPlugin::makeWsConnection()
+HatchetSipPlugin::connectWebSocket()
 {
     //Other things can request access tokens, so if we're already connected there's no need to pay attention
 //    if ( !m_ws.isNull() )
@@ -200,44 +200,7 @@ HatchetSipPlugin::makeWsConnection()
 void
 HatchetSipPlugin::webSocketConnected()
 {
-    tLog() << Q_FUNC_INFO << "WebSocket connected: ";
-}
-
-
-void
-HatchetSipPlugin::webSocketDisconnected()
-{
-    tLog() << Q_FUNC_INFO << "WebSocket disconnected";
-}
-
-
-bool
-HatchetSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
-{
-    tLog() << Q_FUNC_INFO;
-    if ( m_sipState == Closed )
-    {
-        tLog() << Q_FUNC_INFO << "was told to send bytes on a closed connection, not gonna do it";
-        return false;
-    }
-
-    QJson::Serializer serializer;
-    QByteArray bytes = serializer.serialize( jsonMap );
-    if ( bytes.isEmpty() )
-    {
-        tLog() << Q_FUNC_INFO << "could not serialize register structure to JSON";
-        return false;
-    }
-
-    tLog() << Q_FUNC_INFO << "Sending bytes of size" << bytes.size();
-    //m_ws.data()->send( bytes );
-    return true;
-}
-
-void
-HatchetSipPlugin::onWsOpened()
-{
-    tLog() << Q_FUNC_INFO << "WebSocket opened";
+    tLog() << Q_FUNC_INFO << "WebSocket connected";
 
     if ( m_token.isEmpty() || !m_account->credentials().contains( "username" ) )
     {
@@ -263,6 +226,38 @@ HatchetSipPlugin::onWsOpened()
 
 
 void
+HatchetSipPlugin::webSocketDisconnected()
+{
+    tLog() << Q_FUNC_INFO << "WebSocket disconnected";
+    m_sipState = Closed;
+}
+
+
+bool
+HatchetSipPlugin::sendBytes( const QVariantMap& jsonMap ) const
+{
+    tLog() << Q_FUNC_INFO;
+    if ( m_sipState == Closed )
+    {
+        tLog() << Q_FUNC_INFO << "was told to send bytes on a closed connection, not gonna do it";
+        return false;
+    }
+
+    QJson::Serializer serializer;
+    QByteArray bytes = serializer.serialize( jsonMap );
+    if ( bytes.isEmpty() )
+    {
+        tLog() << Q_FUNC_INFO << "could not serialize register structure to JSON";
+        return false;
+    }
+
+    tLog() << Q_FUNC_INFO << "Sending bytes of size" << bytes.size();
+    emit rawBytes( bytes );
+    return true;
+}
+
+
+void
 HatchetSipPlugin::onWsFailed( const QString &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket failed with message: " << msg;
@@ -279,13 +274,13 @@ HatchetSipPlugin::onWsClosed( const QString &msg )
 
 
 void
-HatchetSipPlugin::onWsMessage( const QString &msg )
+HatchetSipPlugin::messageReceived( const QByteArray &msg )
 {
     tLog() << Q_FUNC_INFO << "WebSocket message: " << msg;
 
     QJson::Parser parser;
     bool ok;
-    QVariant jsonVariant = parser.parse( msg.toUtf8(), &ok );
+    QVariant jsonVariant = parser.parse( msg, &ok );
     if ( !jsonVariant.isValid() )
     {
         tLog() << Q_FUNC_INFO << "Failed to parse message back from server";

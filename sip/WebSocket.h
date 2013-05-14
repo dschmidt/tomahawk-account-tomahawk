@@ -25,12 +25,15 @@
 
 #include <QPointer>
 #include <QSslSocket>
-#include <QTimer>
 #include <QUrl>
 
 #include <memory>
 
 typedef typename websocketpp::client< websocketpp::config::hatchet_client > hatchet_client;
+
+class WebSocket;
+
+void onMessage( WebSocket* ws, websocketpp::connection_hdl, hatchet_client::message_ptr msg );
 
 class DLLEXPORT WebSocket : public QObject
 {
@@ -42,41 +45,34 @@ public:
 signals:
     void connected();
     void disconnected();
+    void decodedMessage( QByteArray bytes );
 
 public slots:
     void setUrl( const QString& url );
     void connectWs();
     void disconnectWs();
-
-//    void send(const QString& msg);
-//    void stop();
-
-//signals:
-//    void message(const QString& msg);
-
-//    void opened();
-//    void closed(const QString& reason);
-//    void failed(const QString& reason);
+    void encodeMessage( const QByteArray& bytes );
 
 private slots:
     void socketStateChanged( QAbstractSocket::SocketState state );
     void sslErrors( const QList< QSslError >& errors );
     void encrypted();
     void reconnectWs();
-    void ioTimeout();
+    void readOutput();
     void socketReadyRead();
 
 private:
     Q_DISABLE_COPY( WebSocket )
 
+    friend void onMessage( WebSocket *ws, websocketpp::connection_hdl, hatchet_client::message_ptr msg );
+
     QUrl m_url;
-    std::ostringstream m_outputStream;
-    std::stringstream m_wsBufStream;
+    std::stringstream m_outputStream;
     std::unique_ptr< hatchet_client > m_client;
     hatchet_client::connection_ptr m_connection;
     QPointer< QSslSocket > m_socket;
-    QPointer< QTimer > m_ioTimer;
     QAbstractSocket::SocketState m_lastSocketState;
+    QList< QByteArray > m_queuedMessagesToSend;
 };
 
 #endif

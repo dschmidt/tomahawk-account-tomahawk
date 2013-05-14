@@ -62,6 +62,8 @@ struct hatchet_client : public core_client {
     };
 
     typedef websocketpp::transport::iostream::endpoint<transport_config> transport_type;
+
+    //static const websocketpp::log::level alog_level = websocketpp::log::alevel::all;
 };
 
 } // namespace config

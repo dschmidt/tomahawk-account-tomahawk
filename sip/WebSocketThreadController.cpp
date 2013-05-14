@@ -58,8 +58,10 @@ WebSocketThreadController::run()
         tLog() << Q_FUNC_INFO << "Have a valid websocket and parent";
         connect( m_sip, SIGNAL( connectWebSocket() ), m_webSocket, SLOT( connectWs() ), Qt::QueuedConnection );
         connect( m_sip, SIGNAL( disconnectWebSocket() ), m_webSocket, SLOT( disconnectWs() ), Qt::QueuedConnection );
+        connect( m_sip, SIGNAL( rawBytes( QByteArray ) ), m_webSocket, SLOT( encodeMessage( QByteArray ) ), Qt::QueuedConnection );
         connect( m_webSocket, SIGNAL( connected() ), m_sip, SLOT( webSocketConnected() ), Qt::QueuedConnection );
         connect( m_webSocket, SIGNAL( disconnected() ), m_sip, SLOT( webSocketDisconnected() ), Qt::QueuedConnection );
+        connect( m_webSocket, SIGNAL( decodedMessage( QByteArray ) ), m_sip, SLOT( messageReceived( QByteArray ) ), Qt::QueuedConnection );
         QMetaObject::invokeMethod( m_webSocket, "connectWs", Qt::QueuedConnection );
         exec();
         delete m_webSocket;
