@@ -15,11 +15,11 @@ include( ${TOMAHAWK_USE_FILE} )
 find_package(OpenSSL REQUIRED)
 find_package(QCA2 REQUIRED)
 
-find_package(Boost COMPONENTS regex thread filesystem random system date_time REQUIRED)
+#find_package(Boost COMPONENTS regex thread filesystem random system date_time REQUIRED)
 
-if(${Boost_VERSION} LESS 105300)
-    add_definitions(-D BOOST_NO_LOCK_GUARD)
-endif()
+#if(${Boost_VERSION} LESS 105300)
+#    add_definitions(-D BOOST_NO_LOCK_GUARD)
+#endif()
 
 include_directories(
     ${WEBSOCKETPP_INCLUDE_DIR}
